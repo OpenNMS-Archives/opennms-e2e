@@ -25,7 +25,7 @@ jobs:
 
       - run:
           name: Generate a unique tunnel id
-          command: export SAUCE_TUNNEL_ID=$(uuid)
+          command: echo $(uuidgen) > ~/sauce_tunnel_id
 
       - run: |
           wget https://saucelabs.com/downloads/sc-latest-linux.tar.gz
@@ -33,7 +33,7 @@ jobs:
 
       - run:
           name: Create the Sauce Connect tunnel
-          command: cd sc-*-linux && ./bin/sc --user $SAUCE_USERNAME --api-key $SAUCE_ACCESS_KEY --tunnel-identifier $SAUCE_TUNNEL_ID --readyfile ~/sauce_is_ready
+          command: cd sc-*-linux && ./bin/sc --user $SAUCE_USERNAME --api-key $SAUCE_ACCESS_KEY --tunnel-identifier $(cat ~/sauce_tunnel_id) --readyfile ~/sauce_is_ready
           background: true
 
       - run:
@@ -42,7 +42,9 @@ jobs:
 
       - run:
           name: Run the tess
-          command:  mvn integration-test
+          command: |
+            export SAUCE_TUNNEL_ID=$(cat ~/sauce_tunnel_id)
+            mvn integration-test
 
       - run:
           name: Wait for Sauce Connect to close the tunnel
