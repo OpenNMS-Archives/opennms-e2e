@@ -54,10 +54,11 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
 
     private String username;
     private String accessKey;
+    private String tunnelId;
 
     @Override
     public void setUp(Scenario scenario) throws IOException {
-        loadUsernameAndAccessKey();
+        loadSettings();
         String URL = "https://" + username + ":" + accessKey + "@ondemand.saucelabs.com:443/wd/hub";
 
         DesiredCapabilities caps = new DesiredCapabilities();
@@ -65,6 +66,9 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
         caps.setCapability(CapabilityType.BROWSER_NAME, "chrome");
         caps.setCapability(CapabilityType.VERSION, "59.0");
         caps.setCapability("screenResolution", "1920x1080");
+        if (tunnelId != null) {
+            caps.setCapability("tunnelIdentifier", tunnelId);
+        }
 
         jobName = scenario.getName();
         caps.setCapability("name", jobName);
@@ -88,13 +92,15 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
         System.out.println("SauceOnDemandSessionID="+ sessionId + "job-name="+ jobName);
     }
 
-    private void loadUsernameAndAccessKey() {
+    private void loadSettings() {
         // Try the environment variables first
         String username = System.getenv("SAUCE_USERNAME");
         String accessKey = System.getenv("SAUCE_ACCESS_KEY");
+        String tunnelId = System.getenv("SAUCE_TUNNEL_ID");
         if (username != null && accessKey != null) {
             this.username = username;
             this.accessKey = accessKey;
+            this.tunnelId = tunnelId;
             return;
         }
 
@@ -107,9 +113,11 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
                 props.load(is);
                 username = props.getProperty("username");
                 accessKey = props.getProperty("access-key");
+                tunnelId = props.getProperty("tunnel-id");
                 if (username != null && accessKey != null) {
                     this.username = username;
                     this.accessKey = accessKey;
+                    this.tunnelId = tunnelId;
                     return;
                 }
             } catch (IOException e) {

@@ -23,13 +23,17 @@ jobs:
             - ~/.m2
           key: v1-dependencies-{{ checksum "pom.xml" }}
 
+      - run:
+          name: Generate a unique tunnel id
+          command: export SAUCE_TUNNEL_ID=$(uuid)
+
       - run: |
           wget https://saucelabs.com/downloads/sc-latest-linux.tar.gz
           tar -xzf sc-latest-linux.tar.gz
 
       - run:
           name: Create the Sauce Connect tunnel
-          command: cd sc-*-linux && ./bin/sc --user $SAUCE_USERNAME --api-key $SAUCE_ACCESS_KEY --readyfile ~/sauce_is_ready:
+          command: cd sc-*-linux && ./bin/sc --user $SAUCE_USERNAME --api-key $SAUCE_ACCESS_KEY --tunnel-identifier $SAUCE_TUNNEL_ID --readyfile ~/sauce_is_ready
           background: true
 
       - run:
