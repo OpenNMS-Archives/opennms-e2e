@@ -90,7 +90,7 @@ public class PostgreSQLStack extends EmptyDockerStack {
         props.setProperty("password", PASSWORD );
         LOG.info("Waiting for PostgreSQL service @ {}", url);
         await().atMost(2, MINUTES)
-                .pollInterval(5, SECONDS).pollDelay(0, SECONDS)
+                .pollInterval(5, SECONDS).pollDelay(5, SECONDS)
                 .ignoreException(PSQLException.class)
                 .until(() -> {
                     try(Connection c = DriverManager.getConnection(url, props)) {

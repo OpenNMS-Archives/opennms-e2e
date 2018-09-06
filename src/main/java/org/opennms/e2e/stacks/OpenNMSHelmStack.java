@@ -72,7 +72,7 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                     .cmd("-s")
                     .build(),
                 HELM, (stacker) -> ContainerConfig.builder()
-                        .image("opennms/helm-app:latest")
+                        .image("opennms/helm:bleeding")
                         .exposedPorts("3000/tcp")
                         .hostConfig(HostConfig.builder()
                                 .publishAllPorts(true)
