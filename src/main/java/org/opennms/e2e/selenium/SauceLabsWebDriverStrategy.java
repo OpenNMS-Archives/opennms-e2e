@@ -29,6 +29,8 @@
 package org.opennms.e2e.selenium;
 
 import cucumber.api.Scenario;
+
+import org.json.JSONException;
 import org.opennms.e2e.core.WebDriverStrategy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.CapabilityType;
@@ -84,11 +86,15 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
     }
 
     @Override
-    public void tearDown(Scenario scenario) throws Exception {
+    public void tearDown(Scenario scenario) {
         if (driver != null) {
             driver.quit();
         }
-        SauceUtils.UpdateResults(username, accessKey, !scenario.isFailed(), sessionId);
+        try {
+            SauceUtils.UpdateResults(username, accessKey, !scenario.isFailed(), sessionId);
+        } catch (Exception e) {
+            LOG.error("Failed to report results.", e);
+        }
         System.out.println("SauceOnDemandSessionID="+ sessionId + "job-name="+ jobName);
     }
 

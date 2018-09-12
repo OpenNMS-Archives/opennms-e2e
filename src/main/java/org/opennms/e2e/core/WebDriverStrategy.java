@@ -37,6 +37,6 @@ public interface WebDriverStrategy {
 
     WebDriver getDriver();
 
-    void tearDown(Scenario scenario) throws Exception;
+    void tearDown(Scenario scenario);
 
 }

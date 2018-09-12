@@ -48,7 +48,17 @@ public class OCEStep2Test {
             .build();
 
     @Test
-    public void canStartStack() throws InterruptedException {
+    public void canViewAlarmInAlarmTable() throws InterruptedException {
+        // Using REST to Grafana:
+        // Enable Helm plugin
+        // Create FM datasource
+        // Create dashboard with alarm table
+
+        // Using REST to OpenNMS:
+        // Trigger alarm in OpenNMS
+
+        // Using Selenium to Grafana:
+        // Login, navigate to dashboard, view alarm in table
         Grafana44SeleniumDriver grafanaDriver = new Grafana44SeleniumDriver(e2e.getDriver(), stack.getHelmUrl());
         grafanaDriver.home();
     }

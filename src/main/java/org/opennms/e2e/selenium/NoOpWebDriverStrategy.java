@@ -44,7 +44,7 @@ public class NoOpWebDriverStrategy implements WebDriverStrategy {
     }
 
     @Override
-    public void tearDown(Scenario scenario) throws Exception {
+    public void tearDown(Scenario scenario) {
         // pass
     }
 }
