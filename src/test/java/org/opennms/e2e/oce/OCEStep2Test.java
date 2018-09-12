@@ -28,10 +28,24 @@
 
 package org.opennms.e2e.oce;
 
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasSize;
+
+import java.util.List;
+import java.util.Map;
+
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.opennms.e2e.core.EndToEndTestRule;
 import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
+import org.opennms.e2e.grafana.GrafanaRestClient;
+import org.opennms.e2e.grafana.model.Dashboard;
+import org.opennms.e2e.opennms.OpenNMSRestClient;
+import org.opennms.e2e.opennms.model.Event;
 import org.opennms.e2e.stacks.OpenNMSHelmStack;
 import org.opennms.gizmo.docker.GizmoDockerRule;
 
@@ -49,17 +63,30 @@ public class OCEStep2Test {
 
     @Test
     public void canViewAlarmInAlarmTable() throws InterruptedException {
+        /*
         // Using REST to Grafana:
         // Enable Helm plugin
         // Create FM datasource
         // Create dashboard with alarm table
+        GrafanaRestClient grafanaRestClient = new GrafanaRestClient(stack.getHelmUrl());
+        grafanaRestClient.enablePlugin("helm");
+        grafanaRestClient.createFMDatasource(stack.getOpenNMSUrl());
+        Dashboard dashboard = new Dashboard();
+        grafanaRestClient.addDashboard(dashboard);
 
         // Using REST to OpenNMS:
         // Trigger alarm in OpenNMS
+        OpenNMSRestClient openNMSRestClient = stack.getOpenNMSRestClient();
+        Event e = new Event();
+        e.setUei("uei.opennms.org/alarms/trigger");
+        openNMSRestClient.sendEvent(e);
+        await().atMost(1, MINUTES).until(openNMSRestClient::getAlarms, hasSize(greaterThanOrEqualTo(1)));
+        */
 
         // Using Selenium to Grafana:
         // Login, navigate to dashboard, view alarm in table
         Grafana44SeleniumDriver grafanaDriver = new Grafana44SeleniumDriver(e2e.getDriver(), stack.getHelmUrl());
-        grafanaDriver.home();
+        List<Map<String, String>> alarms = grafanaDriver.home().dashboard("alarms").getTable();
+        assertThat(alarms, hasSize(greaterThanOrEqualTo(1)));
     }
 }
