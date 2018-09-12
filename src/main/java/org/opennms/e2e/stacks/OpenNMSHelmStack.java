@@ -55,7 +55,7 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
     @Override
     public Map<String, Function<GizmoDockerStacker, ContainerConfig>> getContainersByAlias() {
         return ImmutableMap.of(OPENNMS, (stacker) -> ContainerConfig.builder()
-                    .image("opennms/horizon-core-web:20.0.1-1")
+                    .image("opennms/horizon-core-web:bleeding")
                     .exposedPorts("8980/tcp")
                     .env("POSTGRES_HOST=db",
                             "POSTGRES_PORT=5432",
@@ -72,7 +72,8 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                     .cmd("-s")
                     .build(),
                 HELM, (stacker) -> ContainerConfig.builder()
-                        .image("opennms/helm:bleeding")
+                        // Built using: docker build -t opennms/helm:oce .
+                        .image("opennms/helm:oce")
                         .exposedPorts("3000/tcp")
                         .hostConfig(HostConfig.builder()
                                 .publishAllPorts(true)

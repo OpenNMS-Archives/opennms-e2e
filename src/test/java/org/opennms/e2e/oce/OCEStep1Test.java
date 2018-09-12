@@ -38,7 +38,6 @@ public class OCEStep1Test {
     @Rule
     public GizmoDockerRule gizmo = GizmoDockerRule.builder()
             .withStack(new OpenNMSHelmStack())
-            .skipTearDown(true)
             .build();
 
     @Test
