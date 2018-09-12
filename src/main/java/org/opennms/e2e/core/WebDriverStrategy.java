@@ -28,15 +28,14 @@
 
 package org.opennms.e2e.core;
 
-import cucumber.api.Scenario;
 import org.openqa.selenium.WebDriver;
 
 public interface WebDriverStrategy {
 
-    void setUp(Scenario scenario) throws Exception;
+    void setUp(String name) throws Exception;
 
     WebDriver getDriver();
 
-    void tearDown(Scenario scenario);
+    void tearDown(boolean didFail);
 
 }

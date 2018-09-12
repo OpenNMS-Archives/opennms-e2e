@@ -28,9 +28,8 @@
 
 package org.opennms.e2e.core;
 
-import cucumber.api.Scenario;
+import java.util.Objects;
 
-import org.junit.rules.TestRule;
 import org.opennms.e2e.selenium.LocalChromeWebDriverStrategy;
 import org.opennms.e2e.selenium.NoOpWebDriverStrategy;
 import org.opennms.e2e.selenium.SauceLabsWebDriverStrategy;
@@ -38,15 +37,7 @@ import org.opennms.gizmo.GizmoRule;
 import org.opennms.gizmo.junit.ExternalResourceRule;
 import org.openqa.selenium.WebDriver;
 
-import java.util.Objects;
-
 public class EndToEndTestRule extends ExternalResourceRule {
-
-    public void setUp(Scenario scenario) {
-    }
-
-    public void tearDown(Scenario scenario) {
-    }
 
     public enum WebDriverType {
         LOCAL_CHROME,
@@ -103,7 +94,7 @@ public class EndToEndTestRule extends ExternalResourceRule {
         if (gizmo != null) {
             gizmo.before();
         }
-        webDriverStrategy.setUp(null);
+        webDriverStrategy.setUp(getDescription().getClassName() + "." + getDescription().getMethodName());
     }
 
     public WebDriver getDriver() {
@@ -112,7 +103,7 @@ public class EndToEndTestRule extends ExternalResourceRule {
 
     @Override
     public void after(boolean didFail) {
-        webDriverStrategy.tearDown(null);
+        webDriverStrategy.tearDown(didFail);
         if (gizmo != null) {
             gizmo.after(didFail);
         }

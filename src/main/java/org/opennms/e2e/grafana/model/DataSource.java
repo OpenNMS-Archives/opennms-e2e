@@ -41,8 +41,8 @@ public class DataSource {
     private String type;
     private String url;
     private String access;
-    private String user;
-    private String password;
+    private String basicAuthUser;
+    private String basicAuthPassword;
     private String database;
     private boolean basicAuth;
     private boolean isDefault;
@@ -52,96 +52,108 @@ public class DataSource {
         return id;
     }
 
-    public void setId(Integer id) {
+    public DataSource setId(Integer id) {
         this.id = id;
+        return this;
     }
 
     public Integer getOrgId() {
         return orgId;
     }
 
-    public void setOrgId(Integer orgId) {
+    public DataSource setOrgId(Integer orgId) {
         this.orgId = orgId;
+        return this;
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public DataSource setName(String name) {
         this.name = name;
+        return this;
     }
 
     public String getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public DataSource setType(String type) {
         this.type = type;
+        return this;
     }
 
     public String getUrl() {
         return url;
     }
 
-    public void setUrl(String url) {
+    public DataSource setUrl(String url) {
         this.url = url;
+        return this;
     }
 
     public String getAccess() {
         return access;
     }
 
-    public void setAccess(String access) {
+    public DataSource setAccess(String access) {
         this.access = access;
+        return this;
     }
 
-    public String getUser() {
-        return user;
+    public String getBasicAuthUser() {
+        return basicAuthUser;
     }
 
-    public void setUser(String user) {
-        this.user = user;
+    public DataSource setBasicAuthUser(String basicAuthUser) {
+        this.basicAuthUser = basicAuthUser;
+        return this;
     }
 
-    public String getPassword() {
-        return password;
+    public String getBasicAuthPassword() {
+        return basicAuthPassword;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    public DataSource setBasicAuthPassword(String basicAuthPassword) {
+        this.basicAuthPassword = basicAuthPassword;
+        return this;
     }
 
     public String getDatabase() {
         return database;
     }
 
-    public void setDatabase(String database) {
+    public DataSource setDatabase(String database) {
         this.database = database;
+        return this;
     }
 
     public boolean isBasicAuth() {
         return basicAuth;
     }
 
-    public void setBasicAuth(boolean basicAuth) {
+    public DataSource setBasicAuth(boolean basicAuth) {
         this.basicAuth = basicAuth;
+        return this;
     }
 
     public boolean isDefault() {
         return isDefault;
     }
 
-    public void setDefault(boolean aDefault) {
+    public DataSource setDefault(boolean aDefault) {
         isDefault = aDefault;
+        return this;
     }
 
     public Object getJsonData() {
         return jsonData;
     }
 
-    public void setJsonData(Object jsonData) {
+    public DataSource setJsonData(Object jsonData) {
         this.jsonData = jsonData;
+        return this;
     }
 
     @Override
@@ -157,15 +169,15 @@ public class DataSource {
                 Objects.equals(type, that.type) &&
                 Objects.equals(url, that.url) &&
                 Objects.equals(access, that.access) &&
-                Objects.equals(user, that.user) &&
-                Objects.equals(password, that.password) &&
+                Objects.equals(basicAuthUser, that.basicAuthUser) &&
+                Objects.equals(basicAuthPassword, that.basicAuthPassword) &&
                 Objects.equals(database, that.database) &&
                 Objects.equals(jsonData, that.jsonData);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, orgId, name, type, url, access, user, password, database, basicAuth, isDefault, jsonData);
+        return Objects.hash(id, orgId, name, type, url, access, basicAuthUser, basicAuthPassword, database, basicAuth, isDefault, jsonData);
     }
 
     @Override
@@ -177,8 +189,8 @@ public class DataSource {
                 ", type='" + type + '\'' +
                 ", url='" + url + '\'' +
                 ", access='" + access + '\'' +
-                ", user='" + user + '\'' +
-                ", password='" + password + '\'' +
+                ", basicAuthUser='" + basicAuthUser + '\'' +
+                ", basicAuthPassword='" + basicAuthPassword + '\'' +
                 ", database='" + database + '\'' +
                 ", basicAuth=" + basicAuth +
                 ", isDefault=" + isDefault +

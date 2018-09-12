@@ -1,8 +1,8 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2017-2017 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2017 The OpenNMS Group, Inc.
+ * Copyright (C) 2018 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2018 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
@@ -26,13 +26,15 @@
  *     http://www.opennms.com/
  *******************************************************************************/
 
-package org.opennms.e2e.helm;
+package org.opennms.e2e.oce;
 
-import cucumber.api.CucumberOptions;
-import cucumber.api.junit.Cucumber;
-import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@RunWith(Cucumber.class)
-@CucumberOptions(strict = true, plugin = {"html:target/cukes"})
-public class FMDataSourceTest {
+public class End2EndStandaloneCorrelationTest extends End2EndCorrelationTestBase {
+    private static final Logger LOG = LoggerFactory.getLogger(End2EndStandaloneCorrelationTest.class);
+
+    public End2EndStandaloneCorrelationTest() {
+        super(false);
+    }
 }

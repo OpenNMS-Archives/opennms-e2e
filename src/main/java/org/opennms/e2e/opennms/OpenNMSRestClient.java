@@ -28,28 +28,35 @@
 
 package org.opennms.e2e.opennms;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.opennms.e2e.opennms.model.Alarm;
-import org.opennms.e2e.opennms.model.AlarmList;
-import org.opennms.e2e.opennms.model.Event;
+import static org.awaitility.Awaitility.await;
 
-import javax.ws.rs.NotFoundException;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedHashMap;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Base64;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+
+import org.opennms.e2e.opennms.model.Alarm;
+import org.opennms.e2e.opennms.model.AlarmList;
+import org.opennms.e2e.opennms.model.Event;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class OpenNMSRestClient {
 
@@ -95,7 +102,8 @@ public class OpenNMSRestClient {
         final WebTarget target = getTarget().path("events");
         final Response response = getBuilder(target).post(Entity.json(event));
         if (!Response.Status.Family.SUCCESSFUL.equals(response.getStatusInfo().getFamily())) {
-            throw new IllegalArgumentException(String.format("Send event failed with %d: %s", response.getStatus(), response));
+            throw new IllegalArgumentException(String.format("Send event failed with %d: %s", response.getStatus(),
+                    response));
         }
     }
 
@@ -104,6 +112,67 @@ public class OpenNMSRestClient {
                 .accept(MediaType.APPLICATION_JSON)
                 .get(AlarmList.class);
         return alarmList.getAlarms();
+    }
+
+    public List<Alarm> getSituations() {
+        return getAlarms().stream()
+                .filter(alarm -> alarm.getUei().equals("uei.opennms.org/alarms/situation"))
+                .collect(Collectors.toList());
+    }
+
+    private boolean testForAlarmWithReductionKey(String reductionKey) {
+        List<String> reductionKeys = getAlarms().stream()
+                .map(Alarm::getReductionKey)
+                .collect(Collectors.toList());
+        return reductionKeys.contains(reductionKey);
+    }
+
+    private boolean hasActiveSituation() {
+        List<Alarm> situations = getSituations();
+
+        if (situations.isEmpty()) {
+            return false;
+        }
+
+        return getSituations().stream()
+                .anyMatch(alarm -> !alarm.getSeverity().equals("CLEARED"));
+    }
+
+    public void waitForOutstandingSituation() {
+        await()
+                .atMost(5, TimeUnit.MINUTES)
+                .pollInterval(5, TimeUnit.SECONDS)
+                .until(this::hasActiveSituation);
+    }
+
+    public void triggerGenericSituation() {
+        triggerAlarmsForCorrelation();
+        sendEvent(Event.genericSituationAlarmTriggerEvent(Arrays.asList("n1", "n2", "n3")));
+    }
+
+    public void triggerAlarmsForCorrelation() {
+        Event n1 = Event.genericAlarmTriggerEvent("n1");
+        sendEvent(n1);
+        await().atMost(15, TimeUnit.SECONDS).until(() -> testForAlarmWithReductionKey(n1.reductionKey()));
+
+        Event n2 = Event.genericAlarmTriggerEvent("n2");
+        sendEvent(n2);
+        await().atMost(15, TimeUnit.SECONDS).until(() -> testForAlarmWithReductionKey(n2.reductionKey()));
+
+        Event n3 = Event.genericAlarmTriggerEvent("n3");
+        sendEvent(n3);
+        await().atMost(15, TimeUnit.SECONDS).until(() -> testForAlarmWithReductionKey(n3.reductionKey()));
+    }
+
+    public void clearAllAlarms() {
+        MultivaluedMap<String, String> requestParams =
+                new MultivaluedHashMap<>();
+        requestParams.put("clear", Collections.singletonList("true"));
+        getAlarms().forEach(alarm ->
+                getBuilder(getTarget()
+                        .path("alarms")
+                        .path(alarm.getId().toString()))
+                        .put(Entity.form(requestParams)));
     }
 
     private WebTarget getTarget() {

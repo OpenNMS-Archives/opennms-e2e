@@ -28,17 +28,17 @@
 
 package org.opennms.e2e.grafana;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
-import okhttp3.Credentials;
-import org.opennms.e2e.grafana.model.Dashboard;
-import org.opennms.e2e.grafana.model.DashboardCreate;
-import org.opennms.e2e.grafana.model.DashboardWithMetadata;
-import org.opennms.e2e.grafana.model.DataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -46,14 +46,15 @@ import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+
+import org.opennms.e2e.grafana.model.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Throwables;
+
+import okhttp3.Credentials;
 
 public class GrafanaRestClient {
     private static final Logger LOG = LoggerFactory.getLogger(GrafanaRestClient.class);
@@ -91,16 +92,6 @@ public class GrafanaRestClient {
         return builder;
     }
 
-    public Optional<DataSource> getDataSourceByName(String name) {
-        try {
-            final String json = doGet(getTarget().path("api").path("datasources")
-                    .path("name").path(Objects.requireNonNull(name)));
-            return Optional.of(getDataSourceFromJson(json));
-        } catch (NotFoundException e) {
-            return Optional.empty();
-        }
-    }
-
     private String doGet(WebTarget target) {
         LOG.info("Making request to target: {}", target.getUri());
         return getBuilder(target).accept(MediaType.APPLICATION_JSON).get(String.class);
@@ -119,45 +110,42 @@ public class GrafanaRestClient {
         }
     }
 
-    public void deleteDataSource(int id) {
-        final WebTarget target = getTarget().path("api").path("datasources").path(Integer.toString(id));
+    public void addFMDataSource(String dataSourceName) {
+        DataSource dataSource = new DataSource()
+                .setName(dataSourceName)
+                .setType("opennms-helm-fault-datasource")
+                .setUrl("http://opennms:8980/opennms")
+                .setBasicAuth(true)
+                .setBasicAuthUser("admin")
+                .setBasicAuthPassword("admin")
+                .setAccess("proxy");
+        addDataSource(dataSource);
+    }
+
+    public void deleteDataSource(String name) {
+        final WebTarget target = getTarget().path("api").path("datasources").path("name").path(name);
         getBuilder(target).delete();
     }
 
-    public Optional<DashboardWithMetadata> getDashboardByName(String name) {
-        try {
-            final String json = doGet(getTarget().path("api").path("dashboards")
-                    .path(Objects.requireNonNull(name)));
-            return Optional.of(getDashboardFromJson(json));
-        } catch (NotFoundException e) {
-            return Optional.empty();
-        }
-    }
-
-    public void deleteDashboard(int id) {
-        final WebTarget target = getTarget().path("api").path("dashboards").path(Integer.toString(id));
+    public void deleteDashboard(String uid) {
+        final WebTarget target = getTarget().path("api").path("dashboards").path("uid").path(uid);
         getBuilder(target).delete();
     }
 
-    public void addDashboard(Dashboard dash) {
-        DashboardCreate create = new DashboardCreate();
-        create.setDashboard(dash);
-        create.setOverwrite(true);
-
+    public void addFMDasboard(String title, String dataSource) throws IOException {
         final WebTarget target = getTarget().path("api").path("dashboards").path("db");
-        final Response response = getBuilder(target).post(Entity.json(create));
+        File fmDashboardJsonFile = new File(getClass().getClassLoader().getResource("FMDashboard.json").getFile());
+        List<String> fmDashboardJsonLines = Files.readAllLines(Paths.get(fmDashboardJsonFile.getPath()));
+        StringBuilder fmDashboardJson = new StringBuilder();
+        fmDashboardJsonLines.forEach(line -> fmDashboardJson.append(line).append("\n"));
+
+        final Response response = getBuilder(target).post(Entity.json(fmDashboardJson.toString()
+                .replaceAll("%DATA_SOURCE%", dataSource)
+                .replaceAll("%TITLE%", title)
+                .replaceAll("%UID%", title)));
+
         if (!Response.Status.Family.SUCCESSFUL.equals(response.getStatusInfo().getFamily())) {
             throw new IllegalArgumentException(String.format("Add failed with %d: %s", response.getStatus(), response));
-        }
-    }
-
-    private DataSource getDataSourceFromJson(String json) {
-        try {
-            return new ObjectMapper()
-                    .readerFor(DataSource.class)
-                    .readValue(json);
-        } catch (IOException e) {
-            throw Throwables.propagate(e);
         }
     }
 
@@ -171,13 +159,17 @@ public class GrafanaRestClient {
         }
     }
 
-    private DashboardWithMetadata getDashboardFromJson(String json) {
-        try {
-            return new ObjectMapper()
-                    .readerFor(DashboardWithMetadata.class)
-                    .readValue(json);
-        } catch (IOException e) {
-            throw Throwables.propagate(e);
+    public void setPluginStatus(String plugin, boolean status) {
+        final WebTarget target = getTarget()
+                .path("api")
+                .path("plugins")
+                .path(Objects.requireNonNull(plugin))
+                .path("settings");
+        final Response response = getBuilder(target).post(Entity.json("{\"enabled\": " + status + "}"));
+
+        if (!Response.Status.Family.SUCCESSFUL.equals(response.getStatusInfo().getFamily())) {
+            throw new IllegalArgumentException(String.format("Plugin config for %s failed with %d: %s", plugin,
+                    response.getStatus(), response));
         }
     }
 }

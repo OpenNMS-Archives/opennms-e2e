@@ -28,13 +28,12 @@
 
 package org.opennms.e2e.selenium;
 
-import cucumber.api.Scenario;
 import org.opennms.e2e.core.WebDriverStrategy;
 import org.openqa.selenium.WebDriver;
 
 public class NoOpWebDriverStrategy implements WebDriverStrategy {
     @Override
-    public void setUp(Scenario scenario) throws Exception {
+    public void setUp(String name) throws Exception {
         // pass
     }
 
@@ -44,7 +43,7 @@ public class NoOpWebDriverStrategy implements WebDriverStrategy {
     }
 
     @Override
-    public void tearDown(Scenario scenario) {
+    public void tearDown(boolean didFail) {
         // pass
     }
 }
