@@ -28,13 +28,44 @@
 
 package org.opennms.e2e.oce;
 
+import java.io.IOException;
+
+import org.junit.Rule;
+import org.junit.Test;
+import org.opennms.e2e.core.EndToEndTestRule;
+import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
+import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class End2EndStandaloneCorrelationTest extends End2EndCorrelationTestBase {
+public class End2EndStandaloneCorrelationTest extends CorrelationTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(End2EndStandaloneCorrelationTest.class);
+    @Rule
+    public final EndToEndTestRule e2e = getEnd2EndTestRule();
 
-    public End2EndStandaloneCorrelationTest() {
-        super(false);
+    @Test
+    public void canCorrelateAlarms() throws InterruptedException, IOException {
+        try {
+            setup();
+
+            // Trigger some alarms
+            // TODO: This will be replaced with a call to switch sim to generate some alarms
+            openNMSRestClient.triggerAlarmsForCorrelation();
+
+            // OCE Should now correlate them, we need to wait here for the situation alarm to show up
+            LOG.info("Waiting for a situation to be received by OpenNMS...");
+            openNMSRestClient.waitForOutstandingSituation();
+            LOG.info("Situation received, verifying via Helm...");
+
+            // Login, navigate to dashboard, view alarm in table, verify the related alarms
+            verifyGenericSituation(new Grafana44SeleniumDriver(e2e.getDriver(), stack.getHelmUrl()));
+        } finally {
+            cleanup();
+        }
+    }
+
+    @Override
+    OpenNMSHelmOCEStack getStack() {
+        return OpenNMSHelmOCEStack.withStandaloneOCE();
     }
 }

@@ -76,7 +76,7 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                         .hostConfig(HostConfig.builder()
                                 .publishAllPorts(true)
                                 .autoRemove(true)
-                                .binds(setupOverlay("opennms-etc-overlay") + ":/opt/opennms-etc-overlay")
+                                .binds(setupOverlay("opennms-overlay") + ":/opt/opennms-overlay")
                                 .links(String.format("%s:db",
                                         stacker.getContainerInfo(PostgreSQLStack.POSTGRES).name()),
                                         String.format("%s:kafka",
@@ -201,10 +201,6 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
 
     public URL getHelmUrl() {
         return HttpUtils.toHttpUrl(stacker.getServiceAddress(OpenNMSHelmStack.HELM, 3000));
-    }
-
-    public InetSocketAddress getOpenNMSKarafAddress() {
-        return stacker.getServiceAddress(OpenNMSHelmStack.OPENNMS, 8101);
     }
 
     public InetSocketAddress getOCESSHAddress(String alias) {

@@ -42,6 +42,7 @@ jobs:
           name: Wait for the tunnel to be ready
           command: while [ ! -e ~/sauce_is_ready ]; do sleep 1; done
 
+# TODO: This should be removed when the container has been updated
       - run:
           name: Create a OCE container
           command: |
@@ -51,7 +52,7 @@ jobs:
             git checkout -b test origin/mbrooks/overlay-changes
             docker build -t opennms/sentinel:oce .
 
-# TODO: This should be removed when the container has been updated            
+# TODO: This should be removed when the container has been updated
       - run:
           name: Create a OpenNMS container
           command: |
@@ -59,7 +60,7 @@ jobs:
             git clone https://github.com/opennms-forge/docker-horizon-core-web.git
             cd docker-horizon-core-web/
             git checkout -b test origin/mbrooks/overlay-changes
-            docker build -t opennms/horizon-core-web:bleeding .             
+            docker build -t opennms/horizon-core-web:bleeding .
           
       - run:
           name: Run the tests
@@ -73,6 +74,7 @@ jobs:
           command: killall --wait sc
           when: always
 
+# TODO: This can be uncommented when everything is working
 #workflows:
 #  version: 2
 #  # Runs on every commit without triggers

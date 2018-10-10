@@ -101,24 +101,26 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
         return waitingRules.build();
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     private ContainerConfig oceConfig(GizmoDockerStacker stacker) {
-        String featuresToBoot = "KARAF_FEATURES=oce-datasource-opennms,oce-engine-cluster,oce-driver-main,";
-
         Path sentinelOverlayPath = setupOverlay("sentinel-overlay");
+        Path deployPath = sentinelOverlayPath.resolve("deploy");
+        Path standaloneFeatures = deployPath.resolve("features-standalone.xml");
+        Path redundantFeatures = deployPath.resolve("features-redundant.xml");
 
         if (redundant) {
-            featuresToBoot += "sentinel-coordination-api,sentinel-coordination-common," +
-                    "sentinel-coordination-zookeeper,oce-processor-redundant";
+            standaloneFeatures.toFile().delete();
+            redundantFeatures.toFile().renameTo(deployPath.resolve("features.xml").toFile());            
             insertApplicationId(sentinelOverlayPath);
         } else {
-            featuresToBoot += "oce-processor-standalone";
+            redundantFeatures.toFile().delete();
+            standaloneFeatures.toFile().renameTo(deployPath.resolve("features.xml").toFile());
         }
 
         return ContainerConfig.builder()
                 .image("opennms/sentinel:oce")
                 .exposedPorts("8301/tcp")
-                .env("KARAF_REPOS=mvn:org.opennms.oce/oce-karaf-features/1.0.0-SNAPSHOT/xml", featuresToBoot,
-                        "KARAF_DEBUG_LOGGING=org.opennms.oce")
+                .env("KARAF_DEBUG_LOGGING=org.opennms.oce")
                 .hostConfig(HostConfig.builder()
                         .publishAllPorts(true)
                         .autoRemove(true)

@@ -28,21 +28,52 @@
 
 package org.opennms.e2e.oce;
 
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertThat;
+
 import java.io.IOException;
 import java.util.Collections;
 
+import org.opennms.e2e.core.EndToEndTestRule;
 import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
 import org.opennms.e2e.grafana.GrafanaRestClient;
+import org.opennms.e2e.opennms.OpenNMSRestClient;
+import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
+import org.opennms.gizmo.docker.GizmoDockerRule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.util.Pair;
 
-public class CorrelationTestBase {
-    protected static final String pluginName = "opennms-helm-app";
-    protected static final String dataSourceName = "OpenNMS-Fault-Management";
-    protected static final String dashboardName = "Helm-Dashboard";
-    protected static final String genericAlarmTitle = "Alarm: Generic Trigger";
+abstract class CorrelationTestBase {
+    private static final Logger LOG = LoggerFactory.getLogger(CorrelationTestBase.class);
+    private static final String pluginName = "opennms-helm-app";
+    private static final String dataSourceName = "OpenNMS-Fault-Management";
+    private static final String dashboardName = "Helm-Dashboard";
+    private static final String genericAlarmTitle = "Alarm: Generic Trigger";
 
-    protected void setupHelm(GrafanaRestClient grafanaRestClient) throws IOException {
+    final OpenNMSHelmOCEStack stack;
+    GrafanaRestClient grafanaRestClient;
+    OpenNMSRestClient openNMSRestClient;
+
+    public CorrelationTestBase() {
+        stack = getStack();
+    }
+
+    abstract OpenNMSHelmOCEStack getStack();
+
+    EndToEndTestRule getEnd2EndTestRule() {
+        return EndToEndTestRule.builder()
+                .withGizmoRule(GizmoDockerRule.builder()
+                        .withStack(stack)
+                        .build())
+                .withWebDriverType(EndToEndTestRule.WebDriverType.LOCAL_CHROME)
+                // TODO: Will use sauce labs when this gets merged
+//            .withWebDriverType(EndToEndTestRule.WebDriverType.SAUCELABS)
+                .build();
+    }
+
+    void setupHelm(GrafanaRestClient grafanaRestClient) throws IOException {
         // Enable Helm plugin
         grafanaRestClient.setPluginStatus(pluginName, true);
 
@@ -53,17 +84,32 @@ public class CorrelationTestBase {
         grafanaRestClient.addFMDasboard(dashboardName, dataSourceName);
     }
 
-    protected void cleanupHelm(GrafanaRestClient grafanaRestClient) {
+    void cleanupHelm(GrafanaRestClient grafanaRestClient) {
         grafanaRestClient.deleteDashboard(dashboardName);
         grafanaRestClient.deleteDataSource(dataSourceName);
         grafanaRestClient.setPluginStatus(pluginName, false);
     }
 
-    protected void verifyGenericSituation(Grafana44SeleniumDriver grafanaDriver) throws InterruptedException {
+    void verifyGenericSituation(Grafana44SeleniumDriver grafanaDriver) throws InterruptedException {
         grafanaDriver
                 .home()
                 .dashboard(dashboardName)
                 .verifyAnAlarmIsPresent()
                 .verifyRelatedAlarmLabels(Collections.singletonList(new Pair<>(genericAlarmTitle, 3)));
+    }
+
+    void setup() throws IOException {
+        LOG.info("Setting up...");
+        grafanaRestClient = new GrafanaRestClient(stack.getHelmUrl());
+        openNMSRestClient = new OpenNMSRestClient(stack.getOpenNMSUrl());
+        setupHelm(grafanaRestClient);
+        // No alarms/situations
+        assertThat(openNMSRestClient.getAlarms(), hasSize(0));
+    }
+
+    void cleanup() {
+        LOG.info("Cleaning up...");
+        openNMSRestClient.clearAllAlarms();
+        cleanupHelm(grafanaRestClient);
     }
 }

@@ -33,20 +33,13 @@ import java.io.IOException;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestName;
 import org.opennms.e2e.core.EndToEndTestRule;
 import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
-import org.opennms.e2e.grafana.GrafanaRestClient;
-import org.opennms.e2e.opennms.OpenNMSRestClient;
-import org.opennms.e2e.stacks.OpenNMSHelmStack;
+import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
 import org.opennms.gizmo.docker.GizmoDockerRule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-@Ignore("Untested subset of the end2end topology")
+@Ignore("Subset of the end2end topology for manual verification")
 public class ManualCorrelationTest extends CorrelationTestBase {
-    private static final Logger LOG = LoggerFactory.getLogger(ManualCorrelationTest.class);
-    final OpenNMSHelmStack stack = new OpenNMSHelmStack();
     @Rule
     public final EndToEndTestRule e2e = EndToEndTestRule.builder()
             .withGizmoRule(GizmoDockerRule.builder()
@@ -54,8 +47,6 @@ public class ManualCorrelationTest extends CorrelationTestBase {
                     .build())
             .withWebDriverType(EndToEndTestRule.WebDriverType.LOCAL_CHROME)
             .build();
-    @Rule
-    public TestName name = new TestName();
 
     @Test
     public void canStartStack() throws InterruptedException {
@@ -65,21 +56,21 @@ public class ManualCorrelationTest extends CorrelationTestBase {
 
     @Test
     public void canViewRelatedAlarms() throws InterruptedException, IOException {
-        GrafanaRestClient grafanaRestClient = new GrafanaRestClient(stack.getHelmUrl());
-        OpenNMSRestClient openNMSRestClient = new OpenNMSRestClient(stack.getOpenNMSUrl());
-
         try {
-            setupHelm(grafanaRestClient);
+            setup();
 
             // Trigger a situation alarm on OpenNMS
             openNMSRestClient.triggerGenericSituation();
-
+            
             // Login, navigate to dashboard, view alarm in table, verify the related alarms
             verifyGenericSituation(new Grafana44SeleniumDriver(e2e.getDriver(), stack.getHelmUrl()));
         } finally {
-            // Cleanup
-            openNMSRestClient.clearAllAlarms();
-            cleanupHelm(grafanaRestClient);
+            cleanup();
         }
+    }
+
+    @Override
+    OpenNMSHelmOCEStack getStack() {
+        return OpenNMSHelmOCEStack.withStandaloneOCE();
     }
 }

@@ -31,34 +31,33 @@ package org.opennms.e2e.oce;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-import org.awaitility.core.ConditionTimeoutException;
+import org.junit.Rule;
 import org.junit.Test;
+import org.opennms.e2e.core.EndToEndTestRule;
 import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
 import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
 import org.opennms.gizmo.utils.SshClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class End2EndRedundantCorrelationTest extends End2EndCorrelationTestBase {
-    private static final Logger LOG = LoggerFactory.getLogger(End2EndStandaloneCorrelationTest.class);
+public class End2EndRedundantCorrelationTest extends CorrelationTestBase {
+    private static final Logger LOG = LoggerFactory.getLogger(End2EndRedundantCorrelationTest.class);
     private String activeOCEAlias;
-
-    public End2EndRedundantCorrelationTest() {
-        super(true);
-    }
+    @Rule
+    public final EndToEndTestRule e2e = getEnd2EndTestRule();
 
     @Test
-    public void canCorrelateAlarmsAfterFailure() throws IOException, InterruptedException {
+    public void canCorrelateAlarmsAfterFailure() throws Exception {
         setup();
         waitForActiveOCE();
         shutdownKarafOnInstance(activeOCEAlias);
 
         LOG.info("Triggering alarms for correlation via API...");
+        // TODO: This will be replaced with a call to switch sim to generate some alarms
         openNMSRestClient.triggerAlarmsForCorrelation();
 
         // OCE Should now correlate them, we need to wait here for the situation alarm to show up
@@ -71,24 +70,27 @@ public class End2EndRedundantCorrelationTest extends End2EndCorrelationTestBase 
         cleanup();
     }
 
-    private String getActiveOCEAlias() {
+    @Override
+    OpenNMSHelmOCEStack getStack() {
+        return OpenNMSHelmOCEStack.withRedundantOCE();
+    }
+
+    private String getActiveOCEAlias() throws Exception {
         for (String oceAlias : OpenNMSHelmOCEStack.redundanctOCEs) {
             try (final SshClient sshClient = new SshClient(stack.getOCESSHAddress(oceAlias), "admin", "admin")) {
                 PrintStream pipe = sshClient.openShell();
                 pipe.println("processor:current-role");
                 pipe.println("logout");
 
-                // Wait for karaf to process the commands
-                await().atMost(10, SECONDS).until(sshClient.isShellClosedCallable());
-
-                String[] shellOutput = sshClient.getStdout().split("\n");
+                // Wait for Karaf to process the commands
+                await()
+                        .atMost(10, SECONDS)
+                        .until(sshClient.isShellClosedCallable());
 
                 // This check could probably be more precise
-                if (Arrays.stream(shellOutput).anyMatch(row -> row.contains("ACTIVE"))) {
+                if (Arrays.stream(sshClient.getStdout().split("\n")).anyMatch(row -> row.contains("ACTIVE"))) {
                     return oceAlias;
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             }
         }
 
@@ -97,6 +99,7 @@ public class End2EndRedundantCorrelationTest extends End2EndCorrelationTestBase 
 
     private void waitForActiveOCE() {
         LOG.info("Waiting for an active OCE instance...");
+
         await()
                 .atMost(2, TimeUnit.MINUTES)
                 .pollInterval(10, TimeUnit.SECONDS)
@@ -111,25 +114,24 @@ public class End2EndRedundantCorrelationTest extends End2EndCorrelationTestBase 
 
                     return false;
                 });
+
         LOG.info("OCE {} is now active", activeOCEAlias);
     }
 
-    private void shutdownKarafOnInstance(String alias) {
+    private void shutdownKarafOnInstance(String alias) throws Exception {
         LOG.info("Shutting down Karaf on {}", alias);
 
         try (final SshClient sshClient = new SshClient(stack.getOCESSHAddress(alias), "admin", "admin")) {
             PrintStream pipe = sshClient.openShell();
             pipe.println("system:shutdown -f");
 
-            // Wait for karaf to process the commands
-            await().atMost(10, SECONDS).until(sshClient.isShellClosedCallable());
-            stack.
-                    // Make sure the karaf instance is finished shutting down
-                            waitForOCEToTerminateByAlias(alias);
-        } catch (ConditionTimeoutException timeOut) {
-            throw timeOut;
-        } catch (Exception e) {
-            e.printStackTrace();
+            // Wait for Karaf to process the commands
+            await()
+                    .atMost(10, SECONDS)
+                    .until(sshClient.isShellClosedCallable());
+
+            // Make sure the Karaf instance is finished shutting down
+            stack.waitForOCEToTerminateByAlias(alias);
         }
     }
 }
