@@ -1,5 +1,4 @@
 ---
-# TODO: This will be modified before being merged since it is currently dependent on changes in custom branches
 version: 2
 jobs:
   build-and-test:
@@ -42,26 +41,15 @@ jobs:
           name: Wait for the tunnel to be ready
           command: while [ ! -e ~/sauce_is_ready ]; do sleep 1; done
 
-# TODO: This should be removed when the container has been updated
       - run:
           name: Create a OCE container
           command: |
             cd ~
             git clone https://github.com/opennms-forge/docker-sentinel.git
             cd docker-sentinel/
-            git checkout -b test origin/mbrooks/overlay-changes
+            git checkout -b release-oce origin/release-oce
             docker build -t opennms/sentinel:oce .
 
-# TODO: This should be removed when the container has been updated
-      - run:
-          name: Create a OpenNMS container
-          command: |
-            cd ~
-            git clone https://github.com/opennms-forge/docker-horizon-core-web.git
-            cd docker-horizon-core-web/
-            git checkout -b test origin/mbrooks/overlay-changes
-            docker build -t opennms/horizon-core-web:bleeding .
-          
       - run:
           name: Run the tests
           # TODO: Update this to capture the results of the JUnit test runs
@@ -74,23 +62,22 @@ jobs:
           command: killall --wait sc
           when: always
 
-# TODO: This can be uncommented when everything is working
-#workflows:
-#  version: 2
-#  # Runs on every commit without triggers
-#  commit:
-#    jobs:
-#    - build-and-test
-#  # Runs on a scheduled trigger nightly
-#  nightly:
-#    triggers:
-#    - schedule:
-#        # Run daily @ 5:00am UTC
-#        cron: "0 5 * * *"
-#        filters:
-#          branches:
-#            only:
-#            # TODO: This should be changed to master branch
-#            - mbrooks/oce-2
-#    jobs:
-#    - build-and-test
+workflows:
+  version: 2
+  # Runs on every commit without triggers
+  commit:
+    jobs:
+    - build-and-test
+  # Runs on a scheduled trigger nightly
+  nightly:
+    triggers:
+    - schedule:
+        # Run daily @ 5:00am UTC
+        cron: "0 5 * * *"
+        filters:
+          branches:
+            only:
+            # TODO: This should be changed to master branch
+            - mbrooks/oce-2
+    jobs:
+    - build-and-test

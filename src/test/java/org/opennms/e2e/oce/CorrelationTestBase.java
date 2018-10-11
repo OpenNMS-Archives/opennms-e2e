@@ -67,9 +67,8 @@ abstract class CorrelationTestBase {
                 .withGizmoRule(GizmoDockerRule.builder()
                         .withStack(stack)
                         .build())
-                .withWebDriverType(EndToEndTestRule.WebDriverType.LOCAL_CHROME)
-                // TODO: Will use sauce labs when this gets merged
-//            .withWebDriverType(EndToEndTestRule.WebDriverType.SAUCELABS)
+//                .withWebDriverType(EndToEndTestRule.WebDriverType.LOCAL_CHROME)
+                .withWebDriverType(EndToEndTestRule.WebDriverType.SAUCELABS)
                 .build();
     }
 
