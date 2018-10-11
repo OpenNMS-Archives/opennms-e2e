@@ -111,6 +111,11 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
         System.out.println("SauceOnDemandSessionID="+ sessionId + "job-name="+ jobName);
     }
 
+    @Override
+    public void close() throws Exception {
+        tearDown(true);
+    }
+
     private void loadSettings() {
         // Try the environment variables first
         String username = System.getenv("SAUCE_USERNAME");

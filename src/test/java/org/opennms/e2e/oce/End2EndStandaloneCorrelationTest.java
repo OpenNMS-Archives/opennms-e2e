@@ -30,6 +30,7 @@ package org.opennms.e2e.oce;
 
 import java.io.IOException;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.opennms.e2e.core.EndToEndTestRule;
@@ -38,13 +39,14 @@ import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Ignore("Temporarily ignore")
 public class End2EndStandaloneCorrelationTest extends CorrelationTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(End2EndStandaloneCorrelationTest.class);
     @Rule
     public final EndToEndTestRule e2e = getEnd2EndTestRule();
 
     @Test
-    public void canCorrelateAlarms() throws InterruptedException, IOException {
+    public void canCorrelateAlarms() throws Exception {
         try {
             setup();
 

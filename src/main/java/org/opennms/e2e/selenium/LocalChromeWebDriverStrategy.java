@@ -72,6 +72,11 @@ public class LocalChromeWebDriverStrategy implements WebDriverStrategy {
         }
     }
 
+    @Override
+    public void close() throws Exception {
+        tearDown(true);
+    }
+
     private void loadSettings() {
         // Try the environment variables first
         String webdriverChromeDriver = System.getenv("WEBDRIVER_CHROME_DRIVER");

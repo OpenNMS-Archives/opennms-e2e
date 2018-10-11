@@ -35,9 +35,12 @@ import java.io.IOException;
 import java.util.Collections;
 
 import org.opennms.e2e.core.EndToEndTestRule;
+import org.opennms.e2e.core.WebDriverStrategy;
 import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
 import org.opennms.e2e.grafana.GrafanaRestClient;
 import org.opennms.e2e.opennms.OpenNMSRestClient;
+import org.opennms.e2e.selenium.LocalChromeWebDriverStrategy;
+import org.opennms.e2e.selenium.SauceLabsWebDriverStrategy;
 import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
 import org.opennms.gizmo.docker.GizmoDockerRule;
 import org.slf4j.Logger;
@@ -53,6 +56,9 @@ abstract class CorrelationTestBase {
     private static final String genericAlarmTitle = "Alarm: Generic Trigger";
 
     final OpenNMSHelmOCEStack stack;
+//    final EndToEndTestRule.WebDriverType webDriverType = EndToEndTestRule.WebDriverType.LOCAL_CHROME;
+//    final WebDriverStrategy webDriverStrategy = new SauceLabsWebDriverStrategy();
+    final WebDriverStrategy webDriverStrategy = new LocalChromeWebDriverStrategy();
     GrafanaRestClient grafanaRestClient;
     OpenNMSRestClient openNMSRestClient;
 
@@ -72,6 +78,13 @@ abstract class CorrelationTestBase {
                 .withWebDriverType(EndToEndTestRule.WebDriverType.SAUCELABS)
                 .build();
     }
+    
+    GizmoDockerRule getGizmoRule() {
+        return GizmoDockerRule.builder()
+                        .withStack(stack)
+                        .skipTearDownOnFailure(true)
+                        .build();
+    }
 
     void setupHelm(GrafanaRestClient grafanaRestClient) throws IOException {
         // Enable Helm plugin
@@ -90,12 +103,14 @@ abstract class CorrelationTestBase {
         grafanaRestClient.setPluginStatus(pluginName, false);
     }
 
-    void verifyGenericSituation(Grafana44SeleniumDriver grafanaDriver) throws InterruptedException {
+    void verifyGenericSituation(Grafana44SeleniumDriver grafanaDriver) throws Exception {
+        
         grafanaDriver
                 .home()
                 .dashboard(dashboardName)
                 .verifyAnAlarmIsPresent()
                 .verifyRelatedAlarmLabels(Collections.singletonList(new Pair<>(genericAlarmTitle, 3)));
+        
     }
 
     void setup() throws IOException {

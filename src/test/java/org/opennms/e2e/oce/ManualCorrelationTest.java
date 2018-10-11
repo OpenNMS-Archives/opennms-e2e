@@ -55,7 +55,7 @@ public class ManualCorrelationTest extends CorrelationTestBase {
     }
 
     @Test
-    public void canViewRelatedAlarms() throws InterruptedException, IOException {
+    public void canViewRelatedAlarms() throws Exception {
         try {
             setup();
 

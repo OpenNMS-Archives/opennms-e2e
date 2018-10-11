@@ -37,9 +37,12 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.opennms.e2e.core.EndToEndTestRule;
+import org.opennms.e2e.core.WebDriverStrategy;
 import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
+import org.opennms.e2e.selenium.LocalChromeWebDriverStrategy;
+import org.opennms.e2e.selenium.SauceLabsWebDriverStrategy;
 import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
+import org.opennms.gizmo.docker.GizmoDockerRule;
 import org.opennms.gizmo.utils.SshClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +51,10 @@ public class End2EndRedundantCorrelationTest extends CorrelationTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(End2EndRedundantCorrelationTest.class);
     private String activeOCEAlias;
     @Rule
-    public final EndToEndTestRule e2e = getEnd2EndTestRule();
+    public final GizmoDockerRule e2e = getGizmoRule();
+//    @Rule
+//    public final EndToEndTestRule e2e = getEnd2EndTestRule();
+
 
     @Test
     public void canCorrelateAlarmsAfterFailure() throws Exception {
@@ -66,7 +72,11 @@ public class End2EndRedundantCorrelationTest extends CorrelationTestBase {
         LOG.info("Situation received, verifying via Helm...");
 
         // Login, navigate to dashboard, view alarm in table, verify the related alarms
-        verifyGenericSituation(new Grafana44SeleniumDriver(e2e.getDriver(), stack.getHelmUrl()));
+        try(final WebDriverStrategy webDriverStrategy = new SauceLabsWebDriverStrategy()) {
+            webDriverStrategy.setUp("canCorrelateAlarmsAfterFailure");
+            verifyGenericSituation(new Grafana44SeleniumDriver(webDriverStrategy.getDriver(), stack.getHelmUrl()));
+            webDriverStrategy.tearDown(false);
+        }
         cleanup();
     }
 

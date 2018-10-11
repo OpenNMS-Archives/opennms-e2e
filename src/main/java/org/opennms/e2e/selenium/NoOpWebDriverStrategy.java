@@ -46,4 +46,9 @@ public class NoOpWebDriverStrategy implements WebDriverStrategy {
     public void tearDown(boolean didFail) {
         // pass
     }
+
+    @Override
+    public void close() throws Exception {
+        tearDown(true);
+    }
 }
