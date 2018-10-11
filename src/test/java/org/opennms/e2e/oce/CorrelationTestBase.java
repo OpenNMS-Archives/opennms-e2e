@@ -66,6 +66,7 @@ abstract class CorrelationTestBase {
         return EndToEndTestRule.builder()
                 .withGizmoRule(GizmoDockerRule.builder()
                         .withStack(stack)
+                        .skipTearDownOnFailure(true)
                         .build())
 //                .withWebDriverType(EndToEndTestRule.WebDriverType.LOCAL_CHROME)
                 .withWebDriverType(EndToEndTestRule.WebDriverType.SAUCELABS)
