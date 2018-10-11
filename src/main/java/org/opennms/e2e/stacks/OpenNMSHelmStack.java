@@ -107,7 +107,7 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
         try {
             exportedResources = exportResources(overlayDir);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
 
         return exportedResources;
@@ -119,7 +119,7 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
             try {
                 FileUtils.deleteDirectory(exportDir.toFile());
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
         }));
         String sourcePath = Paths.get("/", Objects.requireNonNull(sourceDir)).toString();

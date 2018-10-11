@@ -110,8 +110,13 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
 
         if (redundant) {
             standaloneFeatures.toFile().delete();
-            redundantFeatures.toFile().renameTo(deployPath.resolve("features.xml").toFile());            
-            insertApplicationId(sentinelOverlayPath);
+            redundantFeatures.toFile().renameTo(deployPath.resolve("features.xml").toFile());
+
+            try {
+                insertApplicationId(sentinelOverlayPath);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         } else {
             redundantFeatures.toFile().delete();
             standaloneFeatures.toFile().renameTo(deployPath.resolve("features.xml").toFile());
@@ -131,18 +136,13 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
                 .build();
     }
 
-    private void insertApplicationId(Path overlayDir) {
+    private void insertApplicationId(Path overlayDir) throws IOException {
         String applicationIdProperty = "\napplication.id = oce-datasource-instance-" + instanceNum++;
-
-        try {
-            Files.write(Paths.get(overlayDir.toString(), "etc", "org.opennms.oce.datasource.opennms.kafka" +
-                    ".streams.cfg"), applicationIdProperty.getBytes(), StandardOpenOption.APPEND);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        Files.write(Paths.get(overlayDir.toString(), "etc", "org.opennms.oce.datasource.opennms.kafka" +
+                ".streams.cfg"), applicationIdProperty.getBytes(), StandardOpenOption.APPEND);
     }
 
-    public void waitForOCEToTerminateByAlias(String alias) {
+    public void waitForOCEToTerminateByAlias(String alias) throws Exception {
         LOG.info("Waiting for {} to terminate...", alias);
 
         try (final SshClient sshClient = new SshClient(stacker.getServiceAddress(alias, 8301),
@@ -159,9 +159,6 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
 
                         return false;
                     });
-        } catch (ConditionTimeoutException timedOut) {
-            throw timedOut;
-        } catch (Exception ignore) {
         }
 
         LOG.info("{} has terminated", alias);
@@ -185,9 +182,8 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
 
                         return true;
                     });
-        } catch (ConditionTimeoutException timedOut) {
-            throw timedOut;
-        } catch (Exception ignore) {
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
         LOG.info("{} is ready", alias);
