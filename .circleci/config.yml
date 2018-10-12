@@ -84,7 +84,10 @@ workflows:
     triggers:
     - schedule:
         # Run daily @ 5:00am UTC
-        cron: "0 5 * * *"
+        #cron: "0 5 * * *"
+        # TODO: Revert to daily on master
+        # Run hourly
+        cron: "0 * * * *"
         filters:
           branches:
             only:
