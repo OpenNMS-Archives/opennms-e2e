@@ -31,6 +31,7 @@ package org.opennms.e2e.stacks;
 import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -169,6 +170,7 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
 
         try (final SshClient sshClient = new SshClient(stacker.getServiceAddress(alias, 8301),
                 "admin", "admin")) {
+            // Wait until the karaf shell is available for login
             await()
                     .atMost(1, TimeUnit.MINUTES)
                     .pollInterval(5, TimeUnit.SECONDS)
@@ -181,6 +183,36 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
                                 .until(sshClient.isShellClosedCallable());
 
                         return true;
+                    });
+
+            Thread.sleep(15000);
+            
+            // TODO: Hack
+            await()
+                    .atMost(10, TimeUnit.MINUTES)
+                    .pollInterval(5, TimeUnit.SECONDS)
+                    .ignoreExceptions()
+                    .until(() -> {
+                        PrintStream pipe = sshClient.openShell();
+                        pipe.println("bundle:list -s");
+                        Thread.sleep(1000);
+
+//                            await()
+//                                    .atMost(10, TimeUnit.SECONDS)
+//                                    .until(sshClient.isShellClosedCallable());
+
+                        String[] output = sshClient.getStdout().split("\n");
+
+                        if(Arrays.stream(output)
+                                .anyMatch(string -> string.contains("org.opennms.oce.driver") &&
+                                        string.contains("Active"))) {
+                            return true;
+                        } else {
+                            pipe.println("shell:exec touch deploy/features.xml");
+                            LOG.info("Features were not started, touching features.xml");
+
+                            return false;
+                        }
                     });
         } catch (Exception e) {
             throw new RuntimeException(e);

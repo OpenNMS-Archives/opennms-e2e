@@ -25,6 +25,7 @@ import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -36,6 +37,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -46,6 +48,7 @@ import org.opennms.gizmo.docker.GizmoDockerStack;
 import org.opennms.gizmo.docker.GizmoDockerStacker;
 import org.opennms.gizmo.docker.stacks.EmptyDockerStack;
 import org.opennms.gizmo.utils.HttpUtils;
+import org.opennms.gizmo.utils.SshClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,6 +181,64 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                     .pollInterval(5, SECONDS).pollDelay(0, SECONDS)
                     .ignoreExceptions()
                     .until(nmsRestClient::getDisplayVersion, notNullValue());
+
+            try {
+                Thread.sleep(15000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            // TODO: Hack
+            // TODO: Code duplication
+            try (final SshClient sshClient = new SshClient(stacker.getServiceAddress(OPENNMS, 8101),
+                    "admin", "admin")) {
+                // Wait until the karaf shell is available for login
+//                await()
+//                        .atMost(1, TimeUnit.MINUTES)
+//                        .pollInterval(5, TimeUnit.SECONDS)
+//                        .ignoreExceptions()
+//                        .until(() -> {
+//                            sshClient.openShell().println("logout");
+//
+//                            await()
+//                                    .atMost(10, TimeUnit.SECONDS)
+//                                    .until(sshClient.isShellClosedCallable());
+//
+//                            return true;
+//                        });
+
+                // Once we can login we will check the features to make sure a feature we expect is started and if not touch
+                // the deploy/features.xml file to attempt to get it installed
+                await()
+                        .atMost(5, TimeUnit.MINUTES)
+                        .pollInterval(5, TimeUnit.SECONDS)
+                        .ignoreExceptions()
+                        .until(() -> {
+                            PrintStream pipe = sshClient.openShell();
+                            pipe.println("bundle:list -s");
+                            Thread.sleep(1000);
+
+//                            await()
+//                                    .atMost(10, TimeUnit.SECONDS)
+//                                    .until(sshClient.isShellClosedCallable());
+
+                            String[] output = sshClient.getStdout().split("\n");
+                            
+                            if(Arrays.stream(output)
+                                    .anyMatch(string -> string.contains("org.opennms.features.kafka") &&
+                                            string.contains("Active"))) {
+                                return true;
+                            } else {
+                                pipe.println("shell:exec touch deploy/features.xml");
+                                LOG.info("Features were not started, touching features.xml");
+
+                                return false;
+                            }
+                        });
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            
             LOG.info("OpenNMS is ready");
         }, (stacker) -> {
             LOG.info("Waiting for Helm...");
