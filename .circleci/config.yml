@@ -95,3 +95,15 @@ workflows:
             - mbrooks/oce-2
     jobs:
     - build-and-test
+# Temporary to get the test to run every half hour
+# TODO: Remove this
+  temp:
+    triggers:
+    - schedule:
+        cron: "30 * * * *"
+        filters:
+          branches:
+            only:
+            - mbrooks/oce-2            
+    jobs:
+    - build-and-test

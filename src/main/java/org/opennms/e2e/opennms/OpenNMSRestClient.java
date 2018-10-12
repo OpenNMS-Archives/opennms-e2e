@@ -140,7 +140,7 @@ public class OpenNMSRestClient {
 
     public void waitForOutstandingSituation() {
         await()
-                .atMost(5, TimeUnit.MINUTES)
+                .atMost(10, TimeUnit.MINUTES)
                 .pollInterval(5, TimeUnit.SECONDS)
                 .until(this::hasActiveSituation);
     }
