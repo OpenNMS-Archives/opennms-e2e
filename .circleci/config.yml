@@ -52,7 +52,6 @@ jobs:
 
       - run:
           name: Run the tests
-          # TODO: Update this to capture the results of the JUnit test runs
           command: |
             export SAUCE_TUNNEL_ID=$(cat ~/sauce_tunnel_id)
             mvn integration-test
@@ -67,6 +66,17 @@ jobs:
 
       - store_test_results:
           path: ~/junit
+
+      # TODO: Capture logs from OpenNMS instance
+      - run:
+          name: Save logs
+          command: |
+            mkdir -p ~/logs
+            for oce in $(docker ps -q -f "ancestor=opennms/sentinel:oce"); do mkdir -p ~/logs/oce/$oce && docker cp $oce:/opt/sentinel/data/log/karaf.log ~/logs/oce/$oce/karaf.log; done
+          when: always
+
+      - store_artifacts:
+          path: ~/logs
 
       - run:
           name: Wait for Sauce Connect to close the tunnel
@@ -95,15 +105,15 @@ workflows:
             - mbrooks/oce-2
     jobs:
     - build-and-test
-# Temporary to get the test to run every half hour
-# TODO: Remove this
-  temp:
-    triggers:
-    - schedule:
-        cron: "30 * * * *"
-        filters:
-          branches:
-            only:
-            - mbrooks/oce-2            
-    jobs:
-    - build-and-test
+## Temporary to get the test to run every half hour
+## TODO: Remove this
+#  temp:
+#    triggers:
+#    - schedule:
+#        cron: "30 * * * *"
+#        filters:
+#          branches:
+#            only:
+#            - mbrooks/oce-2            
+#    jobs:
+#    - build-and-test

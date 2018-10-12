@@ -182,63 +182,8 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                     .ignoreExceptions()
                     .until(nmsRestClient::getDisplayVersion, notNullValue());
 
-            try {
-                Thread.sleep(15000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
             // TODO: Hack
-            // TODO: Code duplication
-            try (final SshClient sshClient = new SshClient(stacker.getServiceAddress(OPENNMS, 8101),
-                    "admin", "admin")) {
-                // Wait until the karaf shell is available for login
-//                await()
-//                        .atMost(1, TimeUnit.MINUTES)
-//                        .pollInterval(5, TimeUnit.SECONDS)
-//                        .ignoreExceptions()
-//                        .until(() -> {
-//                            sshClient.openShell().println("logout");
-//
-//                            await()
-//                                    .atMost(10, TimeUnit.SECONDS)
-//                                    .until(sshClient.isShellClosedCallable());
-//
-//                            return true;
-//                        });
-
-                // Once we can login we will check the features to make sure a feature we expect is started and if not touch
-                // the deploy/features.xml file to attempt to get it installed
-                await()
-                        .atMost(5, TimeUnit.MINUTES)
-                        .pollInterval(5, TimeUnit.SECONDS)
-                        .ignoreExceptions()
-                        .until(() -> {
-                            PrintStream pipe = sshClient.openShell();
-                            pipe.println("bundle:list -s");
-                            Thread.sleep(1000);
-
-//                            await()
-//                                    .atMost(10, TimeUnit.SECONDS)
-//                                    .until(sshClient.isShellClosedCallable());
-
-                            String[] output = sshClient.getStdout().split("\n");
-                            
-                            if(Arrays.stream(output)
-                                    .anyMatch(string -> string.contains("org.opennms.features.kafka") &&
-                                            string.contains("Active"))) {
-                                return true;
-                            } else {
-                                pipe.println("shell:exec touch deploy/features.xml");
-                                LOG.info("Features were not started, touching features.xml");
-
-                                return false;
-                            }
-                        });
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            
+            waitForBundleHack("org.opennms.features.kafka", stacker.getServiceAddress(OPENNMS, 8101));
             LOG.info("OpenNMS is ready");
         }, (stacker) -> {
             LOG.info("Waiting for Helm...");
@@ -249,6 +194,54 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                     .until(grafanaRestClient::getDataSources, hasSize(greaterThanOrEqualTo(0)));
             LOG.info("Helm is ready");
         });
+    }
+
+    public static String runKarafCommands(InetSocketAddress serviceAddress, String... commands) throws Exception {
+        try (final SshClient sshClient = new SshClient(serviceAddress, "admin", "admin")) {
+            PrintStream pipe = sshClient.openShell();
+
+            for (String s : commands) {
+                pipe.println(s);
+            }
+
+            // Logout of the shell if a logout command was not provided
+            if (!commands[commands.length - 1].equals("logout")) {
+                pipe.println("logout");
+            }
+
+            // Wait for Karaf to process the commands
+            LOG.info("Waiting for commands to be processed");
+            await()
+                    .atMost(10, SECONDS)
+                    .until(sshClient.isShellClosedCallable());
+
+            return sshClient.getStdout();
+        }
+    }
+
+    static void waitForBundleHack(String bundleName, InetSocketAddress serviceAddress) {
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException ignore) {
+        }
+
+        await()
+                .atMost(5, TimeUnit.MINUTES)
+                .pollInterval(5, TimeUnit.SECONDS)
+                .ignoreExceptions()
+                .until(() -> {
+                    String[] output = runKarafCommands(serviceAddress, "bundle:list -s").split("\n");
+
+                    if (Arrays.stream(output).anyMatch(string -> string.contains(bundleName) &&
+                            string.contains("Active"))) {
+                        return true;
+                    } else {
+                        LOG.error("Features were not started, touching features.xml");
+                        runKarafCommands(serviceAddress, "shell:exec touch deploy/features.xml");
+
+                        return false;
+                    }
+                });
     }
 
     public URL getOpenNMSUrl() {

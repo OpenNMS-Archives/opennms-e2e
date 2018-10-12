@@ -33,22 +33,11 @@ import org.openqa.selenium.WebDriver;
 
 public class NoOpWebDriverStrategy implements WebDriverStrategy {
     @Override
-    public void setUp(String name) throws Exception {
-        // pass
-    }
-
-    @Override
     public WebDriver getDriver() {
         return null;
     }
 
     @Override
-    public void tearDown(boolean didFail) {
-        // pass
-    }
-
-    @Override
-    public void close() throws Exception {
-        tearDown(true);
+    public void close() {
     }
 }

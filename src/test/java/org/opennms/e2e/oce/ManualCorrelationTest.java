@@ -28,12 +28,10 @@
 
 package org.opennms.e2e.oce;
 
-import java.io.IOException;
-
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.opennms.e2e.core.EndToEndTestRule;
+import org.opennms.e2e.core.WebDriverStrategy;
 import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
 import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
 import org.opennms.gizmo.docker.GizmoDockerRule;
@@ -41,17 +39,21 @@ import org.opennms.gizmo.docker.GizmoDockerRule;
 @Ignore("Subset of the end2end topology for manual verification")
 public class ManualCorrelationTest extends CorrelationTestBase {
     @Rule
-    public final EndToEndTestRule e2e = EndToEndTestRule.builder()
-            .withGizmoRule(GizmoDockerRule.builder()
-                    .withStack(stack)
-                    .build())
-            .withWebDriverType(EndToEndTestRule.WebDriverType.LOCAL_CHROME)
-            .build();
+    public final GizmoDockerRule gizmo = getGizmoRule();
 
     @Test
-    public void canStartStack() throws InterruptedException {
-        Grafana44SeleniumDriver grafanaDriver = new Grafana44SeleniumDriver(e2e.getDriver(), stack.getHelmUrl());
-        grafanaDriver.home();
+    public void canStartStack() throws Exception {
+        try (final WebDriverStrategy webDriverStrategy =
+                     getWebDriverStrategy(gizmo.getDescription().getClassName() + "." + gizmo.getDescription().getMethodName())) {
+            try {
+                Grafana44SeleniumDriver grafanaDriver = new Grafana44SeleniumDriver(webDriverStrategy.getDriver(),
+                        stack.getHelmUrl());
+                grafanaDriver.home();
+            } catch (Exception e) {
+                webDriverStrategy.setFailed(true);
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Test
@@ -61,9 +63,9 @@ public class ManualCorrelationTest extends CorrelationTestBase {
 
             // Trigger a situation alarm on OpenNMS
             openNMSRestClient.triggerGenericSituation();
-            
+
             // Login, navigate to dashboard, view alarm in table, verify the related alarms
-            verifyGenericSituation(new Grafana44SeleniumDriver(e2e.getDriver(), stack.getHelmUrl()));
+            verifyGenericSituation(gizmo);
         } finally {
             cleanup();
         }

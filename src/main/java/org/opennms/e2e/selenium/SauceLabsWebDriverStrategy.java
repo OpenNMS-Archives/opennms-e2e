@@ -50,16 +50,17 @@ import org.slf4j.LoggerFactory;
 public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
     private static final Logger LOG = LoggerFactory.getLogger(SauceLabsWebDriverStrategy.class);
 
-    private WebDriver driver;
-    private String jobName;
-    private String sessionId;
-
+    private final WebDriver driver;
+    private final String sessionId;
+    private final String jobName;
+    private boolean failed;
     private String username;
     private String accessKey;
     private String tunnelId;
 
-    @Override
-    public void setUp(String jobName) throws IOException {
+    public SauceLabsWebDriverStrategy(String jobName) throws IOException {
+        this.jobName = Objects.requireNonNull(jobName);
+        
         loadSettings();
         String URL = "https://" + username + ":" + accessKey + "@ondemand.saucelabs.com:443/wd/hub";
 
@@ -72,7 +73,6 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
             caps.setCapability("tunnelIdentifier", tunnelId);
         }
 
-        this.jobName = Objects.requireNonNull(jobName);
         caps.setCapability("name", jobName);
 
         // Set the circleci properties if present
@@ -99,21 +99,16 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
     }
 
     @Override
-    public void tearDown(boolean didFail) {
+    public void close() {
         if (driver != null) {
             driver.quit();
         }
         try {
-            SauceUtils.UpdateResults(username, accessKey, !didFail, sessionId);
+            SauceUtils.UpdateResults(username, accessKey, !failed, sessionId);
         } catch (Exception e) {
             LOG.error("Failed to report results.", e);
         }
         System.out.println("SauceOnDemandSessionID="+ sessionId + "job-name="+ jobName);
-    }
-
-    @Override
-    public void close() throws Exception {
-        tearDown(true);
     }
 
     private void loadSettings() {
@@ -153,4 +148,8 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
         throw new IllegalStateException("Could not find SauceLabs username and access key.");
     }
 
+    @Override
+    public void setFailed(boolean didFail) {
+        failed = didFail;
+    }
 }

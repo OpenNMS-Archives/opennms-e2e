@@ -28,22 +28,19 @@
 
 package org.opennms.e2e.oce;
 
-import java.io.IOException;
-
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.opennms.e2e.core.EndToEndTestRule;
-import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
 import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
+import org.opennms.gizmo.docker.GizmoDockerRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Ignore("Temporarily ignore")
+@Ignore("Temporarily ignored while testing redundancy")
 public class End2EndStandaloneCorrelationTest extends CorrelationTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(End2EndStandaloneCorrelationTest.class);
     @Rule
-    public final EndToEndTestRule e2e = getEnd2EndTestRule();
+    public final GizmoDockerRule gizmo = getGizmoRule();
 
     @Test
     public void canCorrelateAlarms() throws Exception {
@@ -57,10 +54,10 @@ public class End2EndStandaloneCorrelationTest extends CorrelationTestBase {
             // OCE Should now correlate them, we need to wait here for the situation alarm to show up
             LOG.info("Waiting for a situation to be received by OpenNMS...");
             openNMSRestClient.waitForOutstandingSituation();
-            LOG.info("Situation received, verifying via Helm...");
 
             // Login, navigate to dashboard, view alarm in table, verify the related alarms
-            verifyGenericSituation(new Grafana44SeleniumDriver(e2e.getDriver(), stack.getHelmUrl()));
+            LOG.info("Situation received, verifying via Helm...");
+            verifyGenericSituation(gizmo);
         } finally {
             cleanup();
         }

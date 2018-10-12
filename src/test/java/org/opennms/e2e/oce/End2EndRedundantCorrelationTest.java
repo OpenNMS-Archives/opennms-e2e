@@ -28,22 +28,17 @@
 
 package org.opennms.e2e.oce;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 
-import java.io.PrintStream;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.opennms.e2e.core.WebDriverStrategy;
-import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
-import org.opennms.e2e.selenium.LocalChromeWebDriverStrategy;
-import org.opennms.e2e.selenium.SauceLabsWebDriverStrategy;
 import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
+import org.opennms.e2e.stacks.OpenNMSHelmStack;
 import org.opennms.gizmo.docker.GizmoDockerRule;
-import org.opennms.gizmo.utils.SshClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,33 +46,29 @@ public class End2EndRedundantCorrelationTest extends CorrelationTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(End2EndRedundantCorrelationTest.class);
     private String activeOCEAlias;
     @Rule
-    public final GizmoDockerRule e2e = getGizmoRule();
-//    @Rule
-//    public final EndToEndTestRule e2e = getEnd2EndTestRule();
-
+    public final GizmoDockerRule gizmo = getGizmoRule();
 
     @Test
     public void canCorrelateAlarmsAfterFailure() throws Exception {
-        setup();
-        waitForActiveOCE();
-        shutdownKarafOnInstance(activeOCEAlias);
+        try {
+            setup();
+            waitForActiveOCE();
+            shutdownKarafOnInstance(activeOCEAlias);
 
-        LOG.info("Triggering alarms for correlation via API...");
-        // TODO: This will be replaced with a call to switch sim to generate some alarms
-        openNMSRestClient.triggerAlarmsForCorrelation();
+            LOG.info("Triggering alarms for correlation via API...");
+            // TODO: This will be replaced with a call to switch sim to generate some alarms
+            openNMSRestClient.triggerAlarmsForCorrelation();
 
-        // OCE Should now correlate them, we need to wait here for the situation alarm to show up
-        LOG.info("Waiting for a situation to be received by OpenNMS...");
-        openNMSRestClient.waitForOutstandingSituation();
-        LOG.info("Situation received, verifying via Helm...");
+            // OCE Should now correlate them, we need to wait here for the situation alarm to show up
+            LOG.info("Waiting for a situation to be received by OpenNMS...");
+            openNMSRestClient.waitForOutstandingSituation();
 
-        // Login, navigate to dashboard, view alarm in table, verify the related alarms
-        try(final WebDriverStrategy webDriverStrategy = new SauceLabsWebDriverStrategy()) {
-            webDriverStrategy.setUp("canCorrelateAlarmsAfterFailure");
-            verifyGenericSituation(new Grafana44SeleniumDriver(webDriverStrategy.getDriver(), stack.getHelmUrl()));
-            webDriverStrategy.tearDown(false);
+            // Login, navigate to dashboard, view alarm in table, verify the related alarms
+            LOG.info("Situation received, verifying via Helm...");
+            verifyGenericSituation(gizmo);
+        } finally {
+            cleanup();
         }
-        cleanup();
     }
 
     @Override
@@ -85,26 +76,17 @@ public class End2EndRedundantCorrelationTest extends CorrelationTestBase {
         return OpenNMSHelmOCEStack.withRedundantOCE();
     }
 
-    private String getActiveOCEAlias() throws Exception {
+    private Optional<String> getActiveOCEAlias() throws Exception {
         for (String oceAlias : OpenNMSHelmOCEStack.redundanctOCEs) {
-            try (final SshClient sshClient = new SshClient(stack.getOCESSHAddress(oceAlias), "admin", "admin")) {
-                PrintStream pipe = sshClient.openShell();
-                pipe.println("processor:current-role");
-                pipe.println("logout");
+            String[] output = OpenNMSHelmStack.runKarafCommands(stack.getOCESSHAddress(oceAlias),
+                    "processor:current-role").split("\n");
 
-                // Wait for Karaf to process the commands
-                await()
-                        .atMost(10, SECONDS)
-                        .until(sshClient.isShellClosedCallable());
-
-                // This check could probably be more precise
-                if (Arrays.stream(sshClient.getStdout().split("\n")).anyMatch(row -> row.contains("ACTIVE"))) {
-                    return oceAlias;
-                }
+            if (Arrays.stream(output).anyMatch(row -> row.contains("ACTIVE"))) {
+                return Optional.of(oceAlias);
             }
         }
 
-        return null;
+        return Optional.empty();
     }
 
     private void waitForActiveOCE() {
@@ -114,10 +96,10 @@ public class End2EndRedundantCorrelationTest extends CorrelationTestBase {
                 .atMost(2, TimeUnit.MINUTES)
                 .pollInterval(10, TimeUnit.SECONDS)
                 .until(() -> {
-                    String activeResult = getActiveOCEAlias();
+                    Optional<String> activeOCE = getActiveOCEAlias();
 
-                    if (activeResult != null) {
-                        activeOCEAlias = activeResult;
+                    if (activeOCE.isPresent()) {
+                        activeOCEAlias = activeOCE.get();
 
                         return true;
                     }
@@ -130,18 +112,8 @@ public class End2EndRedundantCorrelationTest extends CorrelationTestBase {
 
     private void shutdownKarafOnInstance(String alias) throws Exception {
         LOG.info("Shutting down Karaf on {}", alias);
-
-        try (final SshClient sshClient = new SshClient(stack.getOCESSHAddress(alias), "admin", "admin")) {
-            PrintStream pipe = sshClient.openShell();
-            pipe.println("system:shutdown -f");
-
-            // Wait for Karaf to process the commands
-            await()
-                    .atMost(10, SECONDS)
-                    .until(sshClient.isShellClosedCallable());
-
-            // Make sure the Karaf instance is finished shutting down
-            stack.waitForOCEToTerminateByAlias(alias);
-        }
+        OpenNMSHelmStack.runKarafCommands(stack.getOCESSHAddress(alias), "system:shutdown -f");
+        // Make sure the Karaf instance is finished shutting down
+        stack.waitForOCEToTerminateByAlias(alias);
     }
 }

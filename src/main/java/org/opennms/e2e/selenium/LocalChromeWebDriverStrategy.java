@@ -45,8 +45,7 @@ public class LocalChromeWebDriverStrategy implements WebDriverStrategy {
     private ChromeDriverService service;
     private WebDriver driver;
 
-    @Override
-    public void setUp(String name) throws IOException {
+    public LocalChromeWebDriverStrategy() throws IOException {
         loadSettings();
 
         service = new ChromeDriverService.Builder()
@@ -63,18 +62,13 @@ public class LocalChromeWebDriverStrategy implements WebDriverStrategy {
     }
 
     @Override
-    public void tearDown(boolean didFail) {
+    public void close() {
         if (driver != null) {
             driver.quit();
         }
         if (service != null) {
             service.stop();
         }
-    }
-
-    @Override
-    public void close() throws Exception {
-        tearDown(true);
     }
 
     private void loadSettings() {

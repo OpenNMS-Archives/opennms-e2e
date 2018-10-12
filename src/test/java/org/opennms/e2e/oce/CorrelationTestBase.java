@@ -34,7 +34,6 @@ import static org.junit.Assert.assertThat;
 import java.io.IOException;
 import java.util.Collections;
 
-import org.opennms.e2e.core.EndToEndTestRule;
 import org.opennms.e2e.core.WebDriverStrategy;
 import org.opennms.e2e.grafana.Grafana44SeleniumDriver;
 import org.opennms.e2e.grafana.GrafanaRestClient;
@@ -56,9 +55,6 @@ abstract class CorrelationTestBase {
     private static final String genericAlarmTitle = "Alarm: Generic Trigger";
 
     final OpenNMSHelmOCEStack stack;
-//    final EndToEndTestRule.WebDriverType webDriverType = EndToEndTestRule.WebDriverType.LOCAL_CHROME;
-//    final WebDriverStrategy webDriverStrategy = new SauceLabsWebDriverStrategy();
-    final WebDriverStrategy webDriverStrategy = new LocalChromeWebDriverStrategy();
     GrafanaRestClient grafanaRestClient;
     OpenNMSRestClient openNMSRestClient;
 
@@ -68,22 +64,16 @@ abstract class CorrelationTestBase {
 
     abstract OpenNMSHelmOCEStack getStack();
 
-    EndToEndTestRule getEnd2EndTestRule() {
-        return EndToEndTestRule.builder()
-                .withGizmoRule(GizmoDockerRule.builder()
-                        .withStack(stack)
-                        .skipTearDownOnFailure(true)
-                        .build())
-//                .withWebDriverType(EndToEndTestRule.WebDriverType.LOCAL_CHROME)
-                .withWebDriverType(EndToEndTestRule.WebDriverType.SAUCELABS)
-                .build();
-    }
-    
     GizmoDockerRule getGizmoRule() {
         return GizmoDockerRule.builder()
-                        .withStack(stack)
-                        .skipTearDownOnFailure(true)
-                        .build();
+                .withStack(stack)
+                .skipTearDownOnFailure(true)
+                .build();
+    }
+
+    WebDriverStrategy getWebDriverStrategy(String testName) throws IOException {
+        return new SauceLabsWebDriverStrategy(testName);
+//        return new LocalChromeWebDriverStrategy();
     }
 
     void setupHelm(GrafanaRestClient grafanaRestClient) throws IOException {
@@ -103,14 +93,20 @@ abstract class CorrelationTestBase {
         grafanaRestClient.setPluginStatus(pluginName, false);
     }
 
-    void verifyGenericSituation(Grafana44SeleniumDriver grafanaDriver) throws Exception {
-        
-        grafanaDriver
-                .home()
-                .dashboard(dashboardName)
-                .verifyAnAlarmIsPresent()
-                .verifyRelatedAlarmLabels(Collections.singletonList(new Pair<>(genericAlarmTitle, 3)));
-        
+    void verifyGenericSituation(GizmoDockerRule gizmo) throws Exception {
+        try (final WebDriverStrategy webDriverStrategy =
+                     getWebDriverStrategy(gizmo.getDescription().getClassName() + "." + gizmo.getDescription().getMethodName())) {
+            try {
+                new Grafana44SeleniumDriver(webDriverStrategy.getDriver(), stack.getHelmUrl())
+                        .home()
+                        .dashboard(dashboardName)
+                        .verifyAnAlarmIsPresent()
+                        .verifyRelatedAlarmLabels(Collections.singletonList(new Pair<>(genericAlarmTitle, 3)));
+            } catch (Exception e) {
+                webDriverStrategy.setFailed(true);
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     void setup() throws IOException {

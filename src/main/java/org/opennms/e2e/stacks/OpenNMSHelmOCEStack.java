@@ -31,7 +31,6 @@ package org.opennms.e2e.stacks;
 import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -43,9 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.awaitility.core.ConditionTimeoutException;
 import org.opennms.gizmo.docker.GizmoDockerStacker;
-import org.opennms.gizmo.utils.SshClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -143,24 +140,21 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
                 ".streams.cfg"), applicationIdProperty.getBytes(), StandardOpenOption.APPEND);
     }
 
-    public void waitForOCEToTerminateByAlias(String alias) throws Exception {
+    public void waitForOCEToTerminateByAlias(String alias) {
         LOG.info("Waiting for {} to terminate...", alias);
 
-        try (final SshClient sshClient = new SshClient(stacker.getServiceAddress(alias, 8301),
-                "admin", "admin")) {
-            await()
-                    .atMost(1, TimeUnit.MINUTES)
-                    .pollInterval(5, TimeUnit.SECONDS)
-                    .until(() -> {
-                        try {
-                            sshClient.openShell().println("logout");
-                        } catch (Exception e) {
-                            return true;
-                        }
+        await()
+                .atMost(1, TimeUnit.MINUTES)
+                .pollInterval(5, TimeUnit.SECONDS)
+                .until(() -> {
+                    try {
+                        runKarafCommands(stacker.getServiceAddress(alias, 8301), "logout");
+                    } catch (Exception e) {
+                        return true;
+                    }
 
-                        return false;
-                    });
-        }
+                    return false;
+                });
 
         LOG.info("{} has terminated", alias);
     }
@@ -168,55 +162,29 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
     private static void waitForOCEByAlias(String alias, GizmoDockerStacker stacker) {
         LOG.info("Waiting for {}...", alias);
 
-        try (final SshClient sshClient = new SshClient(stacker.getServiceAddress(alias, 8301),
-                "admin", "admin")) {
-            // Wait until the karaf shell is available for login
-            await()
-                    .atMost(1, TimeUnit.MINUTES)
-                    .pollInterval(5, TimeUnit.SECONDS)
-                    .ignoreExceptions()
-                    .until(() -> {
-                        sshClient.openShell().println("logout");
+        // TODO: This might still be useful once we remove the hack
+//        try (final SshClient sshClient = new SshClient(stacker.getServiceAddress(alias, 8301),
+//                "admin", "admin")) {
+//            // Wait until the karaf shell is available for login
+//            await()
+//                    .atMost(1, TimeUnit.MINUTES)
+//                    .pollInterval(5, TimeUnit.SECONDS)
+//                    .ignoreExceptions()
+//                    .until(() -> {
+//                        sshClient.openShell().println("logout");
+//
+//                        await()
+//                                .atMost(10, TimeUnit.SECONDS)
+//                                .until(sshClient.isShellClosedCallable());
+//
+//                        return true;
+//                    });            
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
 
-                        await()
-                                .atMost(10, TimeUnit.SECONDS)
-                                .until(sshClient.isShellClosedCallable());
-
-                        return true;
-                    });
-
-            Thread.sleep(15000);
-            
-            // TODO: Hack
-            await()
-                    .atMost(10, TimeUnit.MINUTES)
-                    .pollInterval(5, TimeUnit.SECONDS)
-                    .ignoreExceptions()
-                    .until(() -> {
-                        PrintStream pipe = sshClient.openShell();
-                        pipe.println("bundle:list -s");
-                        Thread.sleep(1000);
-
-//                            await()
-//                                    .atMost(10, TimeUnit.SECONDS)
-//                                    .until(sshClient.isShellClosedCallable());
-
-                        String[] output = sshClient.getStdout().split("\n");
-
-                        if(Arrays.stream(output)
-                                .anyMatch(string -> string.contains("org.opennms.oce.driver") &&
-                                        string.contains("Active"))) {
-                            return true;
-                        } else {
-                            pipe.println("shell:exec touch deploy/features.xml");
-                            LOG.info("Features were not started, touching features.xml");
-
-                            return false;
-                        }
-                    });
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // TODO: Hack
+        waitForBundleHack("org.opennms.oce.driver", stacker.getServiceAddress(alias, 8301));
 
         LOG.info("{} is ready", alias);
     }

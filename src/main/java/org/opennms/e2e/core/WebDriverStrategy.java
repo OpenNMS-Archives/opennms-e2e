@@ -31,11 +31,8 @@ package org.opennms.e2e.core;
 import org.openqa.selenium.WebDriver;
 
 public interface WebDriverStrategy extends AutoCloseable {
-
-    void setUp(String name) throws Exception;
-
     WebDriver getDriver();
 
-    void tearDown(boolean didFail);
-
+    default void setFailed(boolean didFail){
+    }
 }
