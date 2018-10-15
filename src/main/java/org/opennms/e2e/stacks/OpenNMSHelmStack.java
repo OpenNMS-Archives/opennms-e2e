@@ -201,6 +201,7 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
             PrintStream pipe = sshClient.openShell();
 
             for (String s : commands) {
+                LOG.debug("Running Karaf command {}", s);
                 pipe.println(s);
             }
 
@@ -236,8 +237,8 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                             string.contains("Active"))) {
                         return true;
                     } else {
-                        LOG.error("Features were not started, touching features.xml");
-                        runKarafCommands(serviceAddress, "shell:exec touch deploy/features.xml");
+//                        LOG.error("Features were not started, touching features.xml");
+//                        runKarafCommands(serviceAddress, "shell:exec touch deploy/features.xml");
 
                         return false;
                     }
