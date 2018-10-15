@@ -183,7 +183,8 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                     .until(nmsRestClient::getDisplayVersion, notNullValue());
 
             // TODO: Hack
-            waitForBundleHack("org.opennms.features.kafka", stacker.getServiceAddress(OPENNMS, 8101));
+//            waitForBundleHack("org.opennms.features.kafka", stacker.getServiceAddress(OPENNMS, 8101));
+            waitForBundleActive("org.opennms.features.kafka", stacker.getServiceAddress(OPENNMS, 8101));
             LOG.info("OpenNMS is ready");
         }, (stacker) -> {
             LOG.info("Waiting for Helm...");
@@ -210,8 +211,6 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                 pipe.println("logout");
             }
 
-            // Wait for Karaf to process the commands
-            LOG.info("Waiting for commands to be processed");
             await()
                     .atMost(10, SECONDS)
                     .until(sshClient.isShellClosedCallable());
@@ -220,28 +219,43 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
         }
     }
 
-    static void waitForBundleHack(String bundleName, InetSocketAddress serviceAddress) {
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException ignore) {
-        }
+    // TODO: Remove once we are confident in alternative workaround
+//    static void waitForBundleHack(String bundleName, InetSocketAddress serviceAddress) {
+//        try {
+//            Thread.sleep(10000);
+//        } catch (InterruptedException ignore) {
+//        }
+//
+//        await()
+//                .atMost(5, TimeUnit.MINUTES)
+//                .pollInterval(5, TimeUnit.SECONDS)
+//                .ignoreExceptions()
+//                .until(() -> {
+//                    String[] output = runKarafCommands(serviceAddress, "bundle:list -s").split("\n");
+//
+//                    if (Arrays.stream(output).anyMatch(string -> string.contains(bundleName) &&
+//                            string.contains("Active"))) {
+//                        return true;
+//                    } else {
+//                        LOG.error("Features were not started, touching features.xml");
+//                        runKarafCommands(serviceAddress, "shell:exec touch deploy/features.xml");
+//                        return false;
+//                    }
+//                });
+//    }
+
+    static void waitForBundleActive(String bundleName, InetSocketAddress serviceAddress) {
+        LOG.debug("Checking for active bundle with prefix {}", bundleName);
 
         await()
-                .atMost(5, TimeUnit.MINUTES)
+                .atMost(1, TimeUnit.MINUTES)
                 .pollInterval(5, TimeUnit.SECONDS)
                 .ignoreExceptions()
                 .until(() -> {
                     String[] output = runKarafCommands(serviceAddress, "bundle:list -s").split("\n");
 
-                    if (Arrays.stream(output).anyMatch(string -> string.contains(bundleName) &&
-                            string.contains("Active"))) {
-                        return true;
-                    } else {
-//                        LOG.error("Features were not started, touching features.xml");
-//                        runKarafCommands(serviceAddress, "shell:exec touch deploy/features.xml");
-
-                        return false;
-                    }
+                    return Arrays.stream(output).anyMatch(row -> row.contains(bundleName) &&
+                            row.contains("Active"));
                 });
     }
 

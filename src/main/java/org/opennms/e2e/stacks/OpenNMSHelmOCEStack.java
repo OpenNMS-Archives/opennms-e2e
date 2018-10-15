@@ -184,7 +184,9 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
 //        }
 
         // TODO: Hack
-        waitForBundleHack("org.opennms.oce.driver", stacker.getServiceAddress(alias, 8301));
+//        waitForBundleHack("org.opennms.oce.driver", stacker.getServiceAddress(alias, 8301));
+        
+        waitForBundleActive("org.opennms.oce.driver", stacker.getServiceAddress(alias, 8301));
 
         LOG.info("{} is ready", alias);
     }

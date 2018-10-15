@@ -67,13 +67,14 @@ jobs:
       - store_test_results:
           path: ~/junit
 
+      # TODO: The below doesn't work because the containers are already torn down when this runs
       # TODO: Capture logs from OpenNMS instance
-      - run:
-          name: Save logs
-          command: |
-            mkdir -p ~/logs
-            for oce in $(docker ps -q -f "ancestor=opennms/sentinel:oce"); do mkdir -p ~/logs/oce/$oce && docker cp $oce:/opt/sentinel/data/log/karaf.log ~/logs/oce/$oce/karaf.log; done
-          when: always
+#      - run:
+#          name: Save logs
+#          command: |
+#            mkdir -p ~/logs
+#            for oce in $(docker ps -q -f "ancestor=opennms/sentinel:oce"); do mkdir -p ~/logs/oce/$oce && docker cp $oce:/opt/sentinel/data/log/karaf.log ~/logs/oce/$oce/karaf.log; done
+#          when: always
 
       - store_artifacts:
           path: ~/logs

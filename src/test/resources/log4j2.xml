@@ -12,6 +12,9 @@
     <Logger name="jinjava" additivity="false" level="WARN">
       <Appender-Ref ref="Console"/>
     </Logger>
+    <Logger name="com.jcraft.jsch" additivity="false" level="ERROR">
+      <Appender-Ref ref="Console"/>
+    </Logger>
     <Root level="DEBUG">
       <AppenderRef ref="Console"/>
     </Root>
