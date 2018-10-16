@@ -28,9 +28,17 @@
 
 package org.opennms.e2e.selenium;
 
-import cucumber.api.Scenario;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
 
-import org.json.JSONException;
 import org.opennms.e2e.core.WebDriverStrategy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.CapabilityType;
@@ -39,41 +47,46 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.Paths;
-import java.util.Properties;
-
 public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
     private static final Logger LOG = LoggerFactory.getLogger(SauceLabsWebDriverStrategy.class);
 
-    private WebDriver driver;
-    private String jobName;
-    private String sessionId;
-
+    private final WebDriver driver;
+    private final String sessionId;
+    private final String jobName;
+    private boolean failed;
     private String username;
     private String accessKey;
     private String tunnelId;
 
-    @Override
-    public void setUp(Scenario scenario) throws IOException {
+    public SauceLabsWebDriverStrategy(String jobName) throws IOException {
+        this.jobName = Objects.requireNonNull(jobName);
+        
         loadSettings();
         String URL = "https://" + username + ":" + accessKey + "@ondemand.saucelabs.com:443/wd/hub";
 
         DesiredCapabilities caps = new DesiredCapabilities();
         caps.setCapability(CapabilityType.PLATFORM, "Windows 10");
         caps.setCapability(CapabilityType.BROWSER_NAME, "chrome");
-        caps.setCapability(CapabilityType.VERSION, "59.0");
+        caps.setCapability(CapabilityType.VERSION, "69.0");
         caps.setCapability("screenResolution", "1920x1080");
         if (tunnelId != null) {
             caps.setCapability("tunnelIdentifier", tunnelId);
         }
 
-        jobName = scenario.getName();
         caps.setCapability("name", jobName);
+
+        // Set the circleci properties if present
+        String circleBuildNum = System.getenv("CIRCLE_BUILD_NUM");
+        if (circleBuildNum != null) {
+            caps.setCapability("build", "circle: " + circleBuildNum);
+        }
+
+        String circleBuildURL = System.getenv("CIRCLE_BUILD_URL");
+        if (circleBuildURL != null) {
+            Map<String, String> customDataMap = new HashMap<>();
+            customDataMap.put("url", circleBuildURL);
+            caps.setCapability("customData", customDataMap);
+        }
 
         driver = new RemoteWebDriver(new URL(URL), caps);
 
@@ -86,12 +99,12 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
     }
 
     @Override
-    public void tearDown(Scenario scenario) {
+    public void close() {
         if (driver != null) {
             driver.quit();
         }
         try {
-            SauceUtils.UpdateResults(username, accessKey, !scenario.isFailed(), sessionId);
+            SauceUtils.UpdateResults(username, accessKey, !failed, sessionId);
         } catch (Exception e) {
             LOG.error("Failed to report results.", e);
         }
@@ -135,4 +148,8 @@ public class SauceLabsWebDriverStrategy implements WebDriverStrategy {
         throw new IllegalStateException("Could not find SauceLabs username and access key.");
     }
 
+    @Override
+    public void setFailed(boolean didFail) {
+        failed = didFail;
+    }
 }

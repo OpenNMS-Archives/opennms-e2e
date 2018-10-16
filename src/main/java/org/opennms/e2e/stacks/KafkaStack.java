@@ -1,8 +1,8 @@
 /*******************************************************************************
  * This file is part of OpenNMS(R).
  *
- * Copyright (C) 2017-2017 The OpenNMS Group, Inc.
- * OpenNMS(R) is Copyright (C) 1999-2017 The OpenNMS Group, Inc.
+ * Copyright (C) 2018 The OpenNMS Group, Inc.
+ * OpenNMS(R) is Copyright (C) 1999-2018 The OpenNMS Group, Inc.
  *
  * OpenNMS(R) is a registered trademark of The OpenNMS Group, Inc.
  *
@@ -33,18 +33,14 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.equalTo;
 
-import java.net.InetSocketAddress;
-import java.sql.Connection;
-import java.sql.DriverManager;
+import java.net.Socket;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.opennms.gizmo.docker.GizmoDockerStacker;
 import org.opennms.gizmo.docker.stacks.EmptyDockerStack;
-import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,19 +49,16 @@ import com.google.common.collect.ImmutableMap;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.HostConfig;
 
-public class PostgreSQLStack extends EmptyDockerStack {
-    private static final Logger LOG = LoggerFactory.getLogger(PostgreSQLStack.class);
-
-    public static String POSTGRES = "POSTGRES";
-
-    public static String USERNAME = "postgres";
-    public static String PASSWORD = USERNAME;
+public class KafkaStack extends EmptyDockerStack {
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaStack.class);
+    public static String KAFKA = "KAFKA";
 
     @Override
     public Map<String, Function<GizmoDockerStacker, ContainerConfig>> getContainersByAlias() {
-        return ImmutableMap.of(POSTGRES, (stacker) -> ContainerConfig.builder()
-                .image("postgres:9.6.1")
-                .env("POSTGRES_PASSWORD=" + PASSWORD)
+        return ImmutableMap.of(KAFKA, (stacker) -> ContainerConfig.builder()
+                .image("spotify/kafka")
+                .exposedPorts("2181/tcp", "9092/tcp")
+                .env("KAFKA_LISTENERS: PLAINTEXT://:9092", "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092")
                 .hostConfig(HostConfig.builder()
                         .publishAllPorts(true)
                         .autoRemove(true)
@@ -76,27 +69,35 @@ public class PostgreSQLStack extends EmptyDockerStack {
 
     @Override
     public List<Consumer<GizmoDockerStacker>> getWaitingRules() {
-        return ImmutableList.of(PostgreSQLStack::waitForPostgres);
+        return ImmutableList.of(KafkaStack::waitForKafka);
     }
 
-    private static void waitForPostgres(GizmoDockerStacker stacker) {
-        final InetSocketAddress postgresAddr = stacker.getServiceAddress(POSTGRES, 5432);
+    private static void waitForKafka(GizmoDockerStacker stacker) {
+        int kafkaAutoPort = stacker.getServiceAddress(KafkaStack.KAFKA, 9092).getPort();
+        int zookeeperAutoPort = stacker.getServiceAddress(KafkaStack.KAFKA, 2181).getPort();
 
-        String url = String.format("jdbc:postgresql://%s:%d/template1",
-                postgresAddr.getHostString(), postgresAddr.getPort());
-        Properties props = new Properties();
-        props.setProperty("user", USERNAME);
-        props.setProperty("password", PASSWORD );
-        LOG.info("Waiting for PostgreSQL service @ {}", url);
+        LOG.info("Waiting for Kafka...");
         await().atMost(2, MINUTES)
                 .pollInterval(5, SECONDS).pollDelay(5, SECONDS)
-                .ignoreException(PSQLException.class)
-                .until(() -> {
-                    try(Connection c = DriverManager.getConnection(url, props)) {
-                        // We got a connection!
-                        return true;
-                    }
-                }, equalTo(true));
-        LOG.info("PostgreSQL service is online.");
+                .until(() -> serverListening("localhost", kafkaAutoPort) &&
+                                serverListening("localhost", zookeeperAutoPort)
+                        , equalTo(true));
+        LOG.info("Kafka is ready");
+    }
+
+    private static boolean serverListening(String host, int port) {
+        Socket s = null;
+        try {
+            s = new Socket(host, port);
+            return true;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (s != null)
+                try {
+                    s.close();
+                } catch (Exception e) {
+                }
+        }
     }
 }

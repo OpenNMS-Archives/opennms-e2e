@@ -28,8 +28,15 @@
 
 package org.opennms.e2e.grafana;
 
-import org.opennms.e2e.grafana.model.Dashboard;
-import org.opennms.e2e.grafana.model.DataSource;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+
+import java.net.URL;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.NoSuchElementException;
@@ -38,18 +45,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+import javafx.util.Pair;
 
 public class Grafana44SeleniumDriver {
     private final WebDriver driver;
@@ -60,24 +56,6 @@ public class Grafana44SeleniumDriver {
         this.driver = Objects.requireNonNull(driver);
         this.url = Objects.requireNonNull(url);
         restClient = new GrafanaRestClient(url);
-    }
-
-    public Grafana44SeleniumDriver ensureDataSourceIsPresent(DataSource ds) {
-        Objects.requireNonNull(ds);
-        // Delete existing datasource if present
-        restClient.getDataSourceByName(ds.getName()).ifPresent(dataSource -> restClient.deleteDataSource(dataSource.getId()));
-        // Add
-        restClient.addDataSource(ds);
-        return this;
-    }
-
-    public Grafana44SeleniumDriver ensureDashboardIsPresent(Dashboard dash) {
-        Objects.requireNonNull(dash);
-        // Delete existing datasource if present
-        restClient.getDashboardByName(dash.getTitle()).ifPresent(meta -> restClient.deleteDashboard(meta.getDashboard().getId()));
-        // Add
-        restClient.addDashboard(dash);
-        return this;
     }
 
     public Grafana44SeleniumDriver home() throws InterruptedException {
@@ -106,99 +84,42 @@ public class Grafana44SeleniumDriver {
                 WebElement logInBtn = driver.findElement(by);
                 final Actions builder = new Actions(driver);
                 builder.moveToElement(logInBtn).click().perform();
-            } catch (NoSuchElementException|StaleElementReferenceException e) {
+            } catch (NoSuchElementException | StaleElementReferenceException e) {
                 break;
             }
             Thread.sleep(500);
         }
 
-        // No wait for the navbar to appear
-        waitFor(By.className("navbar-brand-btn-background"));
+        // Refresh the page to get past the change password screen
+        Thread.sleep(500);
+        driver.navigate().refresh();
 
-        return this;
-    }
-
-    public Grafana44SeleniumDriver enableHelmApplication() {
-        driver.get(url.toString() + "plugins/opennms-helm-app/edit");
-
-        try {
-            driver.findElement(By.xpath("//button[text()='Disable']"));
-            return this;
-        } catch (NoSuchElementException nse) {
-            // pass
-        }
+        // Wait for the dashboard page to appear
+        waitFor(By.className("page-dashboard"));
 
         return this;
     }
 
     public Grafana44SeleniumDriver dashboard(String title) {
-        driver.get(url.toString() + "dashboard/db/" + title);
+        driver.get(url.toString() + "d/" + title);
         waitFor(By.partialLinkText(title));
         return this;
     }
 
-    public Grafana44SeleniumDriver addRow() {
-        moveToAndClick(By.xpath("//span[contains(text(),'ADD ROW')]"));
+    public Grafana44SeleniumDriver verifyAnAlarmIsPresent() {
+        waitFor(By.className("alarm-table"));
+        // We have to double click twice for some reason...
+        moveToAndDoubleClick(By.xpath("//div[contains(@class, 'table-panel-scroll')]/table/tbody/tr"));
+        moveToAndDoubleClick(By.xpath("//div[contains(@class, 'table-panel-scroll')]/table/tbody/tr"));
+        waitFor(By.xpath("//span[text()='Alarm Details']"));
         return this;
     }
 
-    public Grafana44SeleniumDriver addPanel(String type) {
-        waitFor(By.xpath("//input[@placeholder='panel search filter']")).sendKeys(type);
-        moveToAndClick(By.xpath("//div[@title='" + type + "']"));
+    public Grafana44SeleniumDriver verifyRelatedAlarmLabels(List<Pair<String, Integer>> labels) {
+        moveToAndClick(By.xpath("//a[contains(text(),'Related Alarms')]"));
+        labels.forEach(pair -> assertThat(driver.findElements(By.xpath("//td[text()='" + pair.getKey() + "']")),
+                hasSize(pair.getValue())));
         return this;
-    }
-
-    public Grafana44SeleniumDriver editPanel(String name) {
-        moveToAndClick(By.xpath("//span[contains(text(),'Panel Title')]"));
-        moveToAndClick(By.xpath("//a[text()='Edit']"));
-        return this;
-    }
-
-    public Grafana44SeleniumDriver setPanelDataSource(String name) {
-        moveToAndClick(By.xpath("//div[label/text()='Panel Data Source']/*/a"));
-        WebElement el = waitFor(By.xpath("//div[label/text()='Panel Data Source']/*/input"));
-        el.sendKeys(name);
-        el.sendKeys(Keys.ENTER);
-        return this;
-    }
-
-    public Grafana44SeleniumDriver saveDashboard() {
-        moveToAndClick(By.className("fa-save"));
-        // Confirm
-        moveToAndClick(By.xpath("//button[text()='Save']"));
-        return this;
-    }
-
-    public Grafana44SeleniumDriver backToDashboard() {
-        moveToAndClick(By.xpath("//a[text()='Back to dashboard']"));
-        return this;
-    }
-
-    public Grafana44SeleniumDriver configureExistingDataSource(String name) {
-        moveToAndClick(By.className("navbar-brand-btn-background"));
-        moveToAndClick(By.xpath("//span[text()='Data Sources']"));
-        moveToAndClick(By.xpath("//div[contains(text(),'" + name + "')]"));
-        return this;
-    }
-
-    public Grafana44SeleniumDriver setDataSourceBasicAuth(String user, String password) {
-        waitFor(By.xpath("//input[@placeholder='user']")).sendKeys(user);
-        driver.findElement(By.xpath("//input[@placeholder='password']")).sendKeys(password);
-        return this;
-    }
-
-    public Grafana44SeleniumDriver saveDataSource() {
-        moveToAndClick(By.xpath("//button[text()='Save & Test']"));
-        return this;
-    }
-
-    public void verifyDataSourceIsWorking() {
-        waitFor(By.xpath("//div[text()='Data source is working']"));
-    }
-
-    public void verifyDataSourceIsNotWorking() {
-        waitFor(By.xpath("//div[text()='Unknown error']"));
-        assertThat(driver.findElements(By.xpath("//div[text()='Data source is working']")), hasSize(0));
     }
 
     public WebElement waitFor(By by) {
@@ -214,37 +135,24 @@ public class Grafana44SeleniumDriver {
     }
 
     public WebElement moveToAndClick(By by) {
+        return moveToAndClickElement(by, false);
+    }
+
+    public WebElement moveToAndDoubleClick(By by) {
+        return moveToAndClickElement(by, true);
+    }
+
+    public WebElement moveToAndClickElement(By by, boolean doubleClick) {
         final WebElement el = waitFor(by);
         final Actions builder = new Actions(driver);
         builder.moveToElement(el).perform();
-        builder.moveToElement(el).click().perform();
-        return el;
-    }
 
-    public List<Map<String, String>> getTable() {
-        WebElement table = driver.findElement(By.xpath("//table"));
-        // Header
-        WebElement header = table.findElement(By.tagName("thead"));
-        WebElement headerRow = header.findElement(By.tagName("tr"));
-        List<String> columnNames = headerRow.findElements(By.tagName("th")).stream()
-                .map(WebElement::getText)
-                .map(s -> s.replaceAll("\\s+",""))
-                .collect(Collectors.toList());
-
-        // Rows
-        List<WebElement> allRows = table.findElements(By.tagName("tr"));
-        List<Map<String, String>> parsedRows = new ArrayList<>(allRows.size());
-        // Cells
-        for (WebElement row : allRows) {
-            Map<String, String> rowMap = new LinkedHashMap<>();
-            List<WebElement> cells = row.findElements(By.tagName("td"));
-            int i = 0;
-            for (WebElement cell : cells) {
-                rowMap.put(columnNames.get(i), cell.getText());
-                i++;
-            }
-            parsedRows.add(rowMap);
+        if (doubleClick) {
+            builder.moveToElement(el).doubleClick().perform();
+        } else {
+            builder.moveToElement(el).click().perform();
         }
-        return parsedRows;
+
+        return el;
     }
 }

@@ -1,6 +1,7 @@
+---
 version: 2
 jobs:
-  build:
+  build-and-test:
     machine: true
 
     environment:
@@ -28,8 +29,8 @@ jobs:
           command: echo $(uuidgen) > ~/sauce_tunnel_id
 
       - run: |
-          wget https://saucelabs.com/downloads/sc-latest-linux.tar.gz
-          tar -xzf sc-latest-linux.tar.gz
+          wget https://saucelabs.com/downloads/sc-4.5.1-linux.tar.gz
+          tar -xzf sc-4.5.1-linux.tar.gz
 
       - run:
           name: Create the Sauce Connect tunnel
@@ -41,13 +42,79 @@ jobs:
           command: while [ ! -e ~/sauce_is_ready ]; do sleep 1; done
 
       - run:
-          name: Run the tess
+          name: Create a OCE container
+          command: |
+            cd ~
+            git clone https://github.com/opennms-forge/docker-sentinel.git
+            cd docker-sentinel/
+            git checkout -b release-oce origin/release-oce
+            docker build -t opennms/sentinel:oce .
+
+      - run:
+          name: Run the tests
           command: |
             export SAUCE_TUNNEL_ID=$(cat ~/sauce_tunnel_id)
             mvn integration-test
+
+      - run:
+          name: Save test results
+          command: |
+            mkdir -p ~/junit/
+            find . -type f -regex ".*/target/failsafe-reports/.*xml" -exec cp {} ~/junit/ \;
+            find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ~/junit/ \;
+          when: always
+
+      - store_test_results:
+          path: ~/junit
+
+      # TODO: The below doesn't work because the containers are already torn down when this runs
+      # TODO: Capture logs from OpenNMS instance
+#      - run:
+#          name: Save logs
+#          command: |
+#            mkdir -p ~/logs
+#            for oce in $(docker ps -q -f "ancestor=opennms/sentinel:oce"); do mkdir -p ~/logs/oce/$oce && docker cp $oce:/opt/sentinel/data/log/karaf.log ~/logs/oce/$oce/karaf.log; done
+#          when: always
+
+      - store_artifacts:
+          path: ~/logs
 
       - run:
           name: Wait for Sauce Connect to close the tunnel
           command: killall --wait sc
           when: always
 
+workflows:
+  version: 2
+  # Runs on every commit without triggers
+  commit:
+    jobs:
+    - build-and-test
+  # Runs on a scheduled trigger nightly
+  nightly:
+    triggers:
+    - schedule:
+        # Run daily @ 5:00am UTC
+        #cron: "0 5 * * *"
+        # TODO: Revert to daily on master
+        # Run hourly
+        cron: "0 * * * *"
+        filters:
+          branches:
+            only:
+            # TODO: This should be changed to master branch
+            - mbrooks/oce-2
+    jobs:
+    - build-and-test
+## Temporary to get the test to run every half hour
+## TODO: Remove this
+#  temp:
+#    triggers:
+#    - schedule:
+#        cron: "30 * * * *"
+#        filters:
+#          branches:
+#            only:
+#            - mbrooks/oce-2            
+#    jobs:
+#    - build-and-test

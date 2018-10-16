@@ -28,20 +28,43 @@
 
 package org.opennms.e2e.oce;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.opennms.e2e.stacks.OpenNMSHelmStack;
+import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
 import org.opennms.gizmo.docker.GizmoDockerRule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class OCEStep1Test {
-
+@Ignore("Temporarily ignored while testing redundancy")
+public class End2EndStandaloneCorrelationTest extends CorrelationTestBase {
+    private static final Logger LOG = LoggerFactory.getLogger(End2EndStandaloneCorrelationTest.class);
     @Rule
-    public GizmoDockerRule gizmo = GizmoDockerRule.builder()
-            .withStack(new OpenNMSHelmStack())
-            .build();
+    public final GizmoDockerRule gizmo = getGizmoRule();
 
     @Test
-    public void canStartStack() {
+    public void canCorrelateAlarms() throws Exception {
+        try {
+            setup();
 
+            // Trigger some alarms
+            // TODO: This will be replaced with a call to switch sim to generate some alarms
+            openNMSRestClient.triggerAlarmsForCorrelation();
+
+            // OCE Should now correlate them, we need to wait here for the situation alarm to show up
+            LOG.info("Waiting for a situation to be received by OpenNMS...");
+            openNMSRestClient.waitForOutstandingSituation();
+
+            // Login, navigate to dashboard, view alarm in table, verify the related alarms
+            LOG.info("Situation received, verifying via Helm...");
+            verifyGenericSituation(gizmo);
+        } finally {
+            cleanup();
+        }
+    }
+
+    @Override
+    OpenNMSHelmOCEStack getStack() {
+        return OpenNMSHelmOCEStack.withStandaloneOCE();
     }
 }

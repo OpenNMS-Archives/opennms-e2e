@@ -28,15 +28,11 @@
 
 package org.opennms.e2e.core;
 
-import cucumber.api.Scenario;
 import org.openqa.selenium.WebDriver;
 
-public interface WebDriverStrategy {
-
-    void setUp(Scenario scenario) throws Exception;
-
+public interface WebDriverStrategy extends AutoCloseable {
     WebDriver getDriver();
 
-    void tearDown(Scenario scenario);
-
+    default void setFailed(boolean didFail){
+    }
 }
