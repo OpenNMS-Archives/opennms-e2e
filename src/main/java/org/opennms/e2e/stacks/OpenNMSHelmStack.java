@@ -182,8 +182,6 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
                     .ignoreExceptions()
                     .until(nmsRestClient::getDisplayVersion, notNullValue());
 
-            // TODO: Hack
-//            waitForBundleHack("org.opennms.features.kafka", stacker.getServiceAddress(OPENNMS, 8101));
             waitForBundleActive("org.opennms.features.kafka", stacker.getServiceAddress(OPENNMS, 8101));
             LOG.info("OpenNMS is ready");
         }, (stacker) -> {
@@ -218,31 +216,6 @@ public class OpenNMSHelmStack extends EmptyDockerStack {
             return sshClient.getStdout();
         }
     }
-
-    // TODO: Remove once we are confident in alternative workaround
-//    static void waitForBundleHack(String bundleName, InetSocketAddress serviceAddress) {
-//        try {
-//            Thread.sleep(10000);
-//        } catch (InterruptedException ignore) {
-//        }
-//
-//        await()
-//                .atMost(5, TimeUnit.MINUTES)
-//                .pollInterval(5, TimeUnit.SECONDS)
-//                .ignoreExceptions()
-//                .until(() -> {
-//                    String[] output = runKarafCommands(serviceAddress, "bundle:list -s").split("\n");
-//
-//                    if (Arrays.stream(output).anyMatch(string -> string.contains(bundleName) &&
-//                            string.contains("Active"))) {
-//                        return true;
-//                    } else {
-//                        LOG.error("Features were not started, touching features.xml");
-//                        runKarafCommands(serviceAddress, "shell:exec touch deploy/features.xml");
-//                        return false;
-//                    }
-//                });
-//    }
 
     static void waitForBundleActive(String bundleName, InetSocketAddress serviceAddress) {
         LOG.debug("Checking for active bundle with prefix {}", bundleName);

@@ -33,6 +33,6 @@ import org.openqa.selenium.WebDriver;
 public interface WebDriverStrategy extends AutoCloseable {
     WebDriver getDriver();
 
-    default void setFailed(boolean didFail){
+    default void setFailed(boolean didFail) {
     }
 }

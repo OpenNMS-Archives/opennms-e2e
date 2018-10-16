@@ -28,7 +28,6 @@
 
 package org.opennms.e2e.oce;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.opennms.e2e.stacks.OpenNMSHelmOCEStack;
@@ -36,7 +35,6 @@ import org.opennms.gizmo.docker.GizmoDockerRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Ignore("Temporarily ignored while testing redundancy")
 public class End2EndStandaloneCorrelationTest extends CorrelationTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(End2EndStandaloneCorrelationTest.class);
     @Rule
