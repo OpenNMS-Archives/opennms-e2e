@@ -67,15 +67,7 @@ jobs:
       - store_test_results:
           path: ~/junit
 
-      # TODO: The below doesn't work because the containers are already torn down when this runs
-      # TODO: Capture logs from OpenNMS instance
-#      - run:
-#          name: Save logs
-#          command: |
-#            mkdir -p ~/logs
-#            for oce in $(docker ps -q -f "ancestor=opennms/sentinel:oce"); do mkdir -p ~/logs/oce/$oce && docker cp $oce:/opt/sentinel/data/log/karaf.log ~/logs/oce/$oce/karaf.log; done
-#          when: always
-
+      # TODO: Store sentinel and OpenNMS logs in the logs dir
       - store_artifacts:
           path: ~/logs
 
@@ -95,26 +87,11 @@ workflows:
     triggers:
     - schedule:
         # Run daily @ 5:00am UTC
-        #cron: "0 5 * * *"
-        # TODO: Revert to daily on master
-        # Run hourly
-        cron: "0 * * * *"
+        cron: "0 5 * * *"
         filters:
           branches:
             only:
-            # TODO: This should be changed to master branch
-            - mbrooks/oce-2
+            - master
     jobs:
     - build-and-test
-## Temporary to get the test to run every half hour
-## TODO: Remove this
-#  temp:
-#    triggers:
-#    - schedule:
-#        cron: "30 * * * *"
-#        filters:
-#          branches:
-#            only:
-#            - mbrooks/oce-2            
-#    jobs:
-#    - build-and-test
+

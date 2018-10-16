@@ -161,33 +161,7 @@ public class OpenNMSHelmOCEStack extends OpenNMSHelmStack {
 
     private static void waitForOCEByAlias(String alias, GizmoDockerStacker stacker) {
         LOG.info("Waiting for {}...", alias);
-
-        // TODO: This might still be useful once we remove the hack
-//        try (final SshClient sshClient = new SshClient(stacker.getServiceAddress(alias, 8301),
-//                "admin", "admin")) {
-//            // Wait until the karaf shell is available for login
-//            await()
-//                    .atMost(1, TimeUnit.MINUTES)
-//                    .pollInterval(5, TimeUnit.SECONDS)
-//                    .ignoreExceptions()
-//                    .until(() -> {
-//                        sshClient.openShell().println("logout");
-//
-//                        await()
-//                                .atMost(10, TimeUnit.SECONDS)
-//                                .until(sshClient.isShellClosedCallable());
-//
-//                        return true;
-//                    });            
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
-
-        // TODO: Hack
-//        waitForBundleHack("org.opennms.oce.driver", stacker.getServiceAddress(alias, 8301));
-        
         waitForBundleActive("org.opennms.oce.driver", stacker.getServiceAddress(alias, 8301));
-
         LOG.info("{} is ready", alias);
     }
 }
