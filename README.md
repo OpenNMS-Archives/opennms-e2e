@@ -1,4 +1,4 @@
-# End-to-end tests for OpenNMS
+# End-to-end tests for OpenNMS [![CircleCI](https://circleci.com/gh/OpenNMS/opennms-e2e.svg?style=svg)](https://circleci.com/gh/OpenNMS/opennms-e2e)
 
 ## Overview
 
