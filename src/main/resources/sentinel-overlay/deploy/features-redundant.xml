@@ -11,7 +11,7 @@
         <feature>sentinel-coordination-api</feature>
         <feature>sentinel-coordination-common</feature>
         <feature>sentinel-coordination-zookeeper</feature>
-        <feature>oce-datasource-opennms</feature>
+        <feature>oce-datasource-opennms-kafka</feature>
         <feature>oce-engine-cluster</feature>
         <feature>oce-processor-redundant</feature>
         <feature>oce-driver-main</feature>

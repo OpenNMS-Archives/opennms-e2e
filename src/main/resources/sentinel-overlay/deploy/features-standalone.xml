@@ -8,7 +8,7 @@
     <repository>mvn:org.opennms.oce/oce-karaf-features/1.0.0-SNAPSHOT/xml</repository>
     <feature name="autostart-kafka-datasource" version="1" start-level="100" install="auto">
         <!--The config for these features is overlayed in cfg files-->
-        <feature>oce-datasource-opennms</feature>
+        <feature>oce-datasource-opennms-kafka</feature>
         <feature>oce-engine-cluster</feature>
         <feature>oce-processor-standalone</feature>
         <feature>oce-driver-main</feature>
